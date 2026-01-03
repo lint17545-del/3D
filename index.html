@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Christmas Tree (Perfect V3.2)</title>
+    <title>Christmas Tree (Balanced V3.3)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #020202; font-family: sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
@@ -14,8 +14,9 @@
             text-shadow: 0 1px 3px rgba(0,0,0,0.9);
         }
         h1 { margin: 0; font-weight: 300; letter-spacing: 2px; font-size: 24px; color: #d4af37; text-shadow: 0 0 15px rgba(212, 175, 55, 0.8); }
-        /* V3.2 标签 */
-        .version-tag { font-size: 10px; color: #00ff00; margin-bottom: 10px; border: 1px solid #00ff00; display: inline-block; padding: 2px 5px; background: rgba(0,0,0,0.7);}
+        
+        /* V3.3 标签 */
+        .version-tag { font-size: 10px; color: #00ffff; margin-bottom: 10px; border: 1px solid #00ffff; display: inline-block; padding: 2px 5px; background: rgba(0,0,0,0.7);}
         
         #loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -52,11 +53,11 @@
 
     <div id="ui-layer">
         <h1>NOEL PARTICLES</h1>
-        <div class="version-tag">Ver 3.2 (Perfect Photo & Controls)</div>
+        <div class="version-tag">Ver 3.3 (Balanced Range)</div>
         <div class="status" id="gesture-status">Wait for start...</div>
         <div style="margin-top:5px; font-size:12px; color:#ccc; line-height: 1.4;">
-            ✊Fist: Tree | 🖐Open: Scatter (Move to rotate) <br>
-            👌Pinch: Grab center photo
+            ✊Fist: Tree | 🖐Open: Scatter <br>
+            👌Pinch: Grab (Easier now)
         </div>
         <label id="upload-btn">
             Upload Photos (Upload multiple!)
@@ -94,19 +95,18 @@
         const CONFIG = { particleCount: 1800, treeHeight: 50, baseRadius: 18, colors: { green: 0x1a3322, gold: 0xffd700, red: 0xb30000 }, cameraZ: 70 };
         const STATE = { mode: 'TREE', handVisible: false, handX: 0.5, handY: 0.5, gesture: 'NONE' };
         let scene, camera, renderer, composer, particlesMesh, photoGroup, dummy = new THREE.Object3D();
-        // 新增射线检测器，用于精确抓取
         let raycaster = new THREE.Raycaster();
-        const centerVector = new THREE.Vector2(0, 0); // 屏幕中心点
+        const centerVector = new THREE.Vector2(0, 0); 
         const particlesData = [], photosData = [];
 
         function initThree() {
             try {
                 const container = document.getElementById('canvas-container');
                 scene = new THREE.Scene();
-                // 保持淡雾，增加深邃感，但照片会忽略它
+                // 极淡雾效
                 scene.fog = new THREE.FogExp2(0x020202, 0.0008); 
 
-                camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000); // 增加视距
+                camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000); 
                 camera.position.set(0, 12, CONFIG.cameraZ);
                 camera.lookAt(0, 10, 0);
 
@@ -171,9 +171,9 @@
                 dummy.scale.setScalar(0.5+Math.random());
                 dummy.updateMatrix();
                 particlesMesh.setMatrixAt(i, dummy.matrix);
-                // 【修改3：大幅增加散开范围】半径从70增加到250，更广阔
+                // 【调整：粒子范围缩小到 120】
                 particlesData.push({ idx: i, cur: new THREE.Vector3(tx,ty,tz), tree: new THREE.Vector3(tx,ty,tz), 
-                    scat: new THREE.Vector3((Math.random()-0.5)*250, (Math.random()-0.5)*250, (Math.random()-0.5)*250), 
+                    scat: new THREE.Vector3((Math.random()-0.5)*120, (Math.random()-0.5)*120, (Math.random()-0.5)*120), 
                     speed: 0.01+Math.random()*0.02 });
             }
             scene.add(particlesMesh);
@@ -191,17 +191,15 @@
         function createPhoto(img) {
             const tex = new THREE.Texture(img); tex.needsUpdate=true; tex.generateMipmaps=true; tex.encoding = THREE.sRGBEncoding;
             const aspect = img.width/img.height;
-            // 【修改1：彻底移除滤镜】使用 BasicMaterial，并设置 fog: false, toneMapped: false
             const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, fog: false, toneMapped: false });
             const mesh = new THREE.Mesh(new THREE.PlaneGeometry(5*aspect, 5), mat);
-            // 【修改2：白色边框】颜色改为 0xffffff
             const frame = new THREE.Mesh(new THREE.BoxGeometry(5*aspect+0.2, 5.2, 0.1), new THREE.MeshStandardMaterial({color:0xffffff, roughness: 0.4, metalness: 0.2}));
             mesh.position.z = 0.06; frame.add(mesh);
             const ty = Math.random()*CONFIG.treeHeight - CONFIG.treeHeight/2 + 5;
             frame.position.set(0, ty, 20);
-            // 【修改3：大幅增加照片散开范围】
+            // 【调整：照片范围缩小到 150，容易抓取】
             frame.userData = { tree: new THREE.Vector3((Math.random()-0.5)*10, ty, CONFIG.baseRadius+2), 
-                scat: new THREE.Vector3((Math.random()-0.5)*300, (Math.random()-0.5)*200, (Math.random()-0.5)*300), 
+                scat: new THREE.Vector3((Math.random()-0.5)*150, (Math.random()-0.5)*100, (Math.random()-0.5)*150), 
                 cur: frame.position.clone(), focus: false };
             photoGroup.add(frame); photosData.push(frame);
         }
@@ -221,7 +219,7 @@
                 const d = p.userData; let tgt = (targetState==='TREE') ? d.tree : d.scat; let scale = 1;
                 if(d.focus) {
                     const v = new THREE.Vector3(0,0,-15).applyQuaternion(camera.quaternion); tgt = camera.position.clone().add(v);
-                    p.lookAt(camera.position); scale=3.0; // 放大倍数增加
+                    p.lookAt(camera.position); scale=3.0; 
                 } else {
                     if(targetState!=='TREE') p.lookAt(camera.position); else p.lookAt(tgt.x*2, tgt.y, tgt.z*2);
                 }
@@ -233,10 +231,9 @@
         }
 
         function updateCameraFromInput(x, y) {
-            // 【修改4：大幅增加旋转范围】水平和垂直系数翻倍
-            const theta = (x-0.5) * 6 * Math.PI; // 水平范围更大
-            const phi = (1-y) * Math.PI * 0.6 + 0.2; // 垂直范围更大
-            const r = CONFIG.cameraZ * 1.2; // 散开时相机稍远
+            const theta = (x-0.5) * 6 * Math.PI; 
+            const phi = (1-y) * Math.PI * 0.6 + 0.2; 
+            const r = CONFIG.cameraZ * 1.2; 
             const cx = r * Math.sin(theta) * Math.sin(phi);
             const cz = r * Math.cos(theta) * Math.sin(phi);
             const cy = r * Math.cos(phi) + 10;
@@ -260,17 +257,16 @@
             const status = document.getElementById('gesture-status');
             if (res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
                 STATE.handVisible = true; const lm = res.multiHandLandmarks[0];
-                // 增加平滑处理，防止相机抖动
                 STATE.handX = STATE.handX * 0.8 + (1 - lm[0].x) * 0.2; 
                 STATE.handY = STATE.handY * 0.8 + lm[0].y * 0.2;
                 const tips=[8,12,16,20], bases=[5,9,13,17]; let open=0;
                 tips.forEach((t,i) => { if(Math.hypot(lm[t].x-lm[0].x, lm[t].y-lm[0].y) > Math.hypot(lm[bases[i]].x-lm[0].x, lm[bases[i]].y-lm[0].y)*1.3) open++; });
                 if(Math.hypot(lm[4].x-lm[0].x, lm[4].y-lm[0].y)>0.15) open++;
-                const pinch = Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.04; // 捏合阈值微调
+                // 【调整：放宽捏合判定阈值到 0.05，更容易触发】
+                const pinch = Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05; 
 
                 if(pinch) { 
-                    STATE.gesture='PINCH'; status.innerText="👌 Pinch (Grabbing Center)"; 
-                    // 【修改3：全新抓取机制】射线检测
+                    STATE.gesture='PINCH'; status.innerText="👌 Pinch (Grabbing...)"; 
                     raycastGrab();
                 }
                 else if(open<=1) { STATE.gesture='FIST'; STATE.mode='TREE'; resetPhoto(); status.innerText="✊ Fist (Tree)"; }
@@ -283,22 +279,40 @@
             } else { STATE.handVisible = false; status.innerText = "No Hand Detected"; }
         }
 
-        // 【修改3：全新抓取机制】使用 Raycaster 抓取屏幕中心看到的对象
+        // 【优化：双重判定抓取】
         function raycastGrab() {
             if(STATE.mode === 'ZOOM' || photosData.length === 0) return;
-            // 从屏幕中心发射射线
+            
+            // 1. 优先尝试精准射线（瞄准）
             raycaster.setFromCamera(centerVector, camera);
-            // 检测射线是否击中了照片组中的任何一个
             const intersects = raycaster.intersectObjects(photoGroup.children, true);
+            
             if (intersects.length > 0) {
-                // intersects[0] 就是离相机最近、且在画面中心的那个
-                const targetFrame = intersects[0].object.parent; // 获取父级 Frame Mesh
-                if(targetFrame && targetFrame.userData) {
-                    resetPhoto();
-                    STATE.mode='ZOOM'; targetFrame.userData.focus=true;
-                    document.getElementById('gesture-status').innerText = "Got it!";
-                }
+                // 如果瞄准到了，直接抓
+                const targetFrame = intersects[0].object.parent;
+                if(targetFrame) { activatePhoto(targetFrame); return; }
             }
+
+            // 2. 如果没瞄准到，找“离屏幕中心视角最近”的那张（吸附）
+            // 这是一个很棒的 fallback 机制
+            let closest = null; let minAngle = Infinity;
+            const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
+            
+            photosData.forEach(p => {
+                const toPhoto = p.position.clone().sub(camera.position).normalize();
+                const angle = camDir.angleTo(toPhoto); // 计算夹角
+                // 只有在视野中心 20度范围内才吸附，防止抓到背后的
+                if(angle < 0.35 && angle < minAngle) { 
+                    minAngle = angle; closest = p; 
+                }
+            });
+
+            if(closest) activatePhoto(closest);
+        }
+
+        function activatePhoto(p) {
+            resetPhoto(); STATE.mode='ZOOM'; p.userData.focus=true;
+            document.getElementById('gesture-status').innerText = "Got it!";
         }
         function resetPhoto() { photosData.forEach(p=>p.userData.focus=false); }
     </script>
