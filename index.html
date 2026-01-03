@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Christmas Tree (GitHub Edition)</title>
+    <title>Christmas Tree (Final V3.1)</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; font-family: sans-serif; }
+        /* 背景保持深邃黑 */
+        body { margin: 0; overflow: hidden; background-color: #020202; font-family: sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
         #ui-layer {
@@ -14,7 +15,8 @@
             text-shadow: 0 1px 2px rgba(0,0,0,0.8);
         }
         h1 { margin: 0; font-weight: 300; letter-spacing: 2px; font-size: 24px; text-shadow: 0 0 15px rgba(212, 175, 55, 0.6); }
-        .version-tag { font-size: 10px; color: #666; margin-bottom: 10px; border: 1px solid #333; display: inline-block; padding: 2px 5px; }
+        /* 新版本标签 */
+        .version-tag { font-size: 10px; color: #ffcc00; margin-bottom: 10px; border: 1px solid #ffcc00; display: inline-block; padding: 2px 5px; background: rgba(0,0,0,0.5);}
         
         #loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -39,31 +41,25 @@
         input[type="file"] { display: none; }
         .input_video { display: none; }
         
-        /* 错误日志 */
-        #console-log {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 100px;
-            background: rgba(0,0,0,0.8); color: red; font-size: 10px;
-            pointer-events: none; z-index: 999; overflow: auto; display: none;
-        }
+        #console-log { position: fixed; bottom: 0; left: 0; width: 100%; height: 100px; background: rgba(0,0,0,0.8); color: red; font-size: 10px; pointer-events: none; z-index: 999; overflow: auto; display: none; }
     </style>
 </head>
 <body>
     <div id="console-log"></div>
-
     <div id="loader">
-        <div id="loading-text">Loading Assets (GitHub Mode)...</div>
+        <div id="loading-text">Loading Assets...</div>
         <button id="start-btn">START CAMERA</button>
     </div>
 
     <div id="ui-layer">
         <h1>NOEL PARTICLES</h1>
-        <div class="version-tag">Ver 3.0 (GitHub Stable)</div>
+        <div class="version-tag">Ver 3.1 (Fix Grab & Filter)</div>
         <div class="status" id="gesture-status">Wait for start...</div>
         <div style="margin-top:5px; font-size:12px; color:#aaa;">
-            ✊Fist: Tree | 🖐Open: Scatter | 👌Pinch: Grab
+            ✊Fist: Tree | 🖐Open: Scatter | 👌Pinch: Grab Closest
         </div>
         <label id="upload-btn">
-            Upload Photos
+            Upload Photos (Upload multiple!)
             <input type="file" id="file-input" multiple accept="image/*">
         </label>
     </div>
@@ -78,39 +74,20 @@
     <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
     <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
     <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-    
     <script src="https://unpkg.com/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
     <script>
-        function log(msg) {
-            const el = document.getElementById('console-log');
-            el.style.display = 'block';
-            el.innerHTML += `> ${msg}<br>`;
-            console.log(msg);
-        }
-
+        function log(msg) { const el = document.getElementById('console-log'); el.style.display='block'; el.innerHTML+=`> ${msg}<br>`; console.log(msg); }
         window.onload = function() {
-            const startBtn = document.getElementById('start-btn');
-            const loadingText = document.getElementById('loading-text');
-
-            // GitHub Pages HTTPS Check
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-                log("Error: Not HTTPS. Camera blocked.");
-                loadingText.innerText = "Please use HTTPS (GitHub Pages)";
-                return;
-            }
-
-            loadingText.style.display = 'none';
-            startBtn.style.display = 'block';
-
+            const startBtn = document.getElementById('start-btn'); const loadingText = document.getElementById('loading-text');
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost') { log("Error: Not HTTPS."); loadingText.innerText="Please use HTTPS"; return; }
+            loadingText.style.display = 'none'; startBtn.style.display = 'block';
             startBtn.addEventListener('click', () => {
-                document.getElementById('loader').style.opacity = 0;
-                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
-                initThree();
-                startCamera(); 
+                document.getElementById('loader').style.opacity = 0; setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+                initThree(); startCamera(); 
             });
         };
 
@@ -123,7 +100,9 @@
             try {
                 const container = document.getElementById('canvas-container');
                 scene = new THREE.Scene();
-                scene.fog = new THREE.FogExp2(0x050505, 0.002);
+                // 【修复2：滤镜过重】将雾效密度从 0.002 降低到 0.0008，大幅减轻灰蒙感
+                scene.fog = new THREE.FogExp2(0x020202, 0.0008); 
+
                 camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
                 camera.position.set(0, 12, CONFIG.cameraZ);
                 camera.lookAt(0, 10, 0);
@@ -132,17 +111,19 @@
                 renderer.setSize(window.innerWidth, window.innerHeight);
                 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
                 renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                // 【修复2：提高亮度】提高曝光度，让画面更明亮
+                renderer.toneMappingExposure = 1.6; 
                 container.appendChild(renderer.domElement);
 
                 scene.add(new THREE.AmbientLight(0xffffff, 0.1));
                 const l1 = new THREE.PointLight(CONFIG.colors.gold, 2.0, 120); l1.position.set(10,30,30); scene.add(l1);
                 const l2 = new THREE.PointLight(CONFIG.colors.red, 1.5, 100); l2.position.set(-15,0,15); scene.add(l2);
 
-                // Bloom Try-Catch
                 try {
                     const renderScene = new THREE.RenderPass(scene, camera);
-                    const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-                    bloomPass.threshold = 0.7; bloomPass.strength = 1.0; bloomPass.radius = 0.4;
+                    // 微调辉光，让亮部更突出，暗部更纯净
+                    const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.4, 0.8);
+                    bloomPass.threshold = 0.75; bloomPass.strength = 0.8; bloomPass.radius = 0.3;
                     composer = new THREE.EffectComposer(renderer);
                     composer.addPass(renderScene);
                     composer.addPass(bloomPass);
@@ -152,13 +133,12 @@
                 photoGroup = new THREE.Group();
                 scene.add(photoGroup);
 
-                // Inputs
                 document.addEventListener('mousemove', e => {
                     if (!STATE.handVisible && STATE.mode === 'SCATTER') updateCameraFromInput(e.clientX/window.innerWidth, e.clientY/window.innerHeight);
                 });
                 document.addEventListener('click', e => {
                     if(['upload-btn', 'file-input', 'start-btn'].includes(e.target.id)) return;
-                    if(!STATE.handVisible) { STATE.mode = STATE.mode === 'TREE' ? 'SCATTER' : 'TREE'; }
+                    if(!STATE.handVisible && photosData.length > 0) { STATE.mode = STATE.mode === 'TREE' ? 'SCATTER' : 'TREE'; }
                 });
 
                 window.addEventListener('resize', () => {
@@ -167,7 +147,6 @@
                     if(composer) composer.setSize(window.innerWidth, window.innerHeight);
                 });
                 document.getElementById('file-input').addEventListener('change', handleImageUpload);
-                
                 animate();
             } catch(err) { log("3D Init Error: " + err.message); }
         }
@@ -184,172 +163,123 @@
                 const tx = Math.cos(angle)*r + (Math.random()-0.5)*2;
                 const tz = Math.sin(angle)*r + (Math.random()-0.5)*2;
                 const ty = (CONFIG.treeHeight*p) - CONFIG.treeHeight/2 + 5;
-                
                 let t = Math.random();
                 if(t>0.65) col.setHex(t>0.9 ? CONFIG.colors.red : CONFIG.colors.gold); else col.setHex(CONFIG.colors.green);
                 particlesMesh.setColorAt(i, col);
-                
                 dummy.position.set(tx, ty, tz);
                 dummy.scale.setScalar(0.5+Math.random());
                 dummy.updateMatrix();
                 particlesMesh.setMatrixAt(i, dummy.matrix);
-
-                particlesData.push({
-                    idx: i, cur: new THREE.Vector3(tx,ty,tz), tree: new THREE.Vector3(tx,ty,tz),
-                    scat: new THREE.Vector3((Math.random()-0.5)*60, (Math.random()-0.5)*60, (Math.random()-0.5)*60),
-                    speed: 0.015+Math.random()*0.03
-                });
+                particlesData.push({ idx: i, cur: new THREE.Vector3(tx,ty,tz), tree: new THREE.Vector3(tx,ty,tz), scat: new THREE.Vector3((Math.random()-0.5)*60, (Math.random()-0.5)*60, (Math.random()-0.5)*60), speed: 0.015+Math.random()*0.03 });
             }
             scene.add(particlesMesh);
         }
 
         function handleImageUpload(e) {
-            const files = e.target.files;
-            if(!files.length) return;
+            const files = e.target.files; if(!files.length) return;
             Array.from(files).forEach(f => {
                 const r = new FileReader();
-                r.onload = ev => {
-                    const img = new Image();
-                    img.src = ev.target.result;
-                    img.onload = () => createPhoto(img);
-                };
+                r.onload = ev => { const img = new Image(); img.src = ev.target.result; img.onload = () => createPhoto(img); };
                 r.readAsDataURL(f);
             });
         }
 
         function createPhoto(img) {
-            const tex = new THREE.Texture(img); tex.needsUpdate=true; tex.generateMipmaps=true;
+            const tex = new THREE.Texture(img); tex.needsUpdate=true; tex.generateMipmaps=true; tex.encoding = THREE.sRGBEncoding;
             const aspect = img.width/img.height;
+            // 使用 BasicMaterial 确保照片亮度不受光照和过多雾效影响
             const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
             const mesh = new THREE.Mesh(new THREE.PlaneGeometry(5*aspect, 5), mat);
-            // Frame
-            const frame = new THREE.Mesh(new THREE.BoxGeometry(5*aspect+0.2, 5.2, 0.1), new THREE.MeshStandardMaterial({color:0xffd700}));
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(5*aspect+0.2, 5.2, 0.1), new THREE.MeshStandardMaterial({color:0xffd700, roughness: 0.1, metalness: 0.9}));
             mesh.position.z = 0.06; frame.add(mesh);
-            
             const ty = Math.random()*CONFIG.treeHeight - CONFIG.treeHeight/2 + 5;
             frame.position.set(0, ty, 20);
-            frame.userData = {
-                tree: new THREE.Vector3((Math.random()-0.5)*10, ty, CONFIG.baseRadius),
-                scat: new THREE.Vector3((Math.random()-0.5)*80, (Math.random()-0.5)*50, (Math.random()-0.5)*80),
-                cur: frame.position.clone(), focus: false
-            };
+            frame.userData = { tree: new THREE.Vector3((Math.random()-0.5)*10, ty, CONFIG.baseRadius), scat: new THREE.Vector3((Math.random()-0.5)*80, (Math.random()-0.5)*50, (Math.random()-0.5)*80), cur: frame.position.clone(), focus: false };
             photoGroup.add(frame); photosData.push(frame);
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            const targetState = STATE.mode;
-            const time = Date.now() * 0.0005;
-
-            // Particles
+            const targetState = STATE.mode; const time = Date.now() * 0.0005;
             for(let i=0; i<CONFIG.particleCount; i++) {
-                const d = particlesData[i];
-                let tgt = (targetState==='TREE'||targetState==='ZOOM') ? d.tree : d.scat;
+                const d = particlesData[i]; let tgt = (targetState==='TREE'||targetState==='ZOOM') ? d.tree : d.scat;
                 if(targetState!=='TREE') d.cur.y += Math.sin(time+i)*0.01;
-                d.cur.lerp(tgt, d.speed);
-                dummy.position.copy(d.cur);
+                d.cur.lerp(tgt, d.speed); dummy.position.copy(d.cur);
                 if(targetState==='SCATTER') { dummy.rotation.x+=0.01; dummy.rotation.y+=0.01; } else dummy.rotation.set(0,0,0);
-                dummy.updateMatrix();
-                particlesMesh.setMatrixAt(i, dummy.matrix);
+                dummy.updateMatrix(); particlesMesh.setMatrixAt(i, dummy.matrix);
             }
             particlesMesh.instanceMatrix.needsUpdate=true;
-
-            // Photos
             photosData.forEach(p => {
-                const d = p.userData;
-                let tgt = (targetState==='TREE') ? d.tree : d.scat;
-                let scale = 1;
+                const d = p.userData; let tgt = (targetState==='TREE') ? d.tree : d.scat; let scale = 1;
                 if(d.focus) {
-                    const v = new THREE.Vector3(0,0,-12).applyQuaternion(camera.quaternion);
-                    tgt = camera.position.clone().add(v);
+                    const v = new THREE.Vector3(0,0,-12).applyQuaternion(camera.quaternion); tgt = camera.position.clone().add(v);
                     p.lookAt(camera.position); scale=2.5;
                 } else {
-                    if(targetState!=='TREE') p.lookAt(camera.position);
-                    else p.lookAt(tgt.x*2, tgt.y, tgt.z*2);
+                    if(targetState!=='TREE') p.lookAt(camera.position); else p.lookAt(tgt.x*2, tgt.y, tgt.z*2);
                 }
-                d.cur.lerp(tgt, 0.05);
-                p.position.copy(d.cur);
-                p.scale.lerp(new THREE.Vector3(scale,scale,scale), 0.1);
+                d.cur.lerp(tgt, 0.05); p.position.copy(d.cur); p.scale.lerp(new THREE.Vector3(scale,scale,scale), 0.1);
             });
-
-            // Camera
             if(STATE.mode==='SCATTER' && STATE.handVisible) updateCameraFromInput(STATE.handX, STATE.handY);
             else if(STATE.mode==='TREE') { camera.position.lerp(new THREE.Vector3(0,12,CONFIG.cameraZ), 0.04); camera.lookAt(0,10,0); }
-
             if(composer) composer.render(); else renderer.render(scene, camera);
         }
 
         function updateCameraFromInput(x, y) {
-            const theta = (x-0.5)*3 * Math.PI * 0.5;
-            const phi = (1-y)*Math.PI*0.3 + 0.1;
-            const cx = CONFIG.cameraZ * Math.sin(theta);
-            const cz = CONFIG.cameraZ * Math.cos(theta);
-            camera.position.lerp(new THREE.Vector3(cx, (y-0.5)*40+15, cz), 0.04);
-            camera.lookAt(0, 8, 0);
+            const theta = (x-0.5)*3 * Math.PI * 0.5; const phi = (1-y)*Math.PI*0.3 + 0.1;
+            const cx = CONFIG.cameraZ * Math.sin(theta); const cz = CONFIG.cameraZ * Math.cos(theta);
+            camera.position.lerp(new THREE.Vector3(cx, (y-0.5)*40+15, cz), 0.04); camera.lookAt(0, 8, 0);
         }
 
-        // --- AI LOGIC ---
         async function startCamera() {
-            log("Init AI...");
-            const video = document.getElementsByClassName('input_video')[0];
+            log("Init AI..."); const video = document.getElementsByClassName('input_video')[0];
             try {
-                if(typeof Hands === 'undefined') throw new Error("Hands lib not loaded");
-                
-                const hands = new Hands({locateFile: (file) => {
-                    return `https://unpkg.com/@mediapipe/hands/${file}`;
-                }});
-                
+                if(typeof Hands === 'undefined') throw new Error("Hands lib missing");
+                const hands = new Hands({locateFile: (file) => `https://unpkg.com/@mediapipe/hands/${file}`});
                 hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
                 hands.onResults(onResults);
-                
-                const camera = new Camera(video, {
-                    onFrame: async () => { await hands.send({image: video}); },
-                    width: 640, height: 480
-                });
-                
-                await camera.start();
-                document.getElementById('gesture-status').innerText = "AI Active!";
-                log("Camera Started");
-            } catch(e) {
-                log("Cam Fail: " + e.message);
-                document.getElementById('gesture-status').innerText = "Cam Failed. Mouse Mode.";
-            }
+                const camera = new Camera(video, { onFrame: async () => { await hands.send({image: video}); }, width: 640, height: 480 });
+                await camera.start(); document.getElementById('gesture-status').innerText = "AI Active!"; log("Camera Started");
+            } catch(e) { log("Cam Fail: " + e.message); document.getElementById('gesture-status').innerText = "Cam Failed. Mouse Mode."; }
         }
 
         function onResults(res) {
             const status = document.getElementById('gesture-status');
             if (res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
-                STATE.handVisible = true;
-                const lm = res.multiHandLandmarks[0];
+                STATE.handVisible = true; const lm = res.multiHandLandmarks[0];
                 STATE.handX = 1 - lm[0].x; STATE.handY = lm[0].y;
-                
-                // Gesture Logic
-                const tips=[8,12,16,20], bases=[5,9,13,17];
-                let open=0;
-                tips.forEach((t,i) => { 
-                    if(Math.hypot(lm[t].x-lm[0].x, lm[t].y-lm[0].y) > Math.hypot(lm[bases[i]].x-lm[0].x, lm[bases[i]].y-lm[0].y)*1.3) open++; 
-                });
+                const tips=[8,12,16,20], bases=[5,9,13,17]; let open=0;
+                tips.forEach((t,i) => { if(Math.hypot(lm[t].x-lm[0].x, lm[t].y-lm[0].y) > Math.hypot(lm[bases[i]].x-lm[0].x, lm[bases[i]].y-lm[0].y)*1.3) open++; });
                 if(Math.hypot(lm[4].x-lm[0].x, lm[4].y-lm[0].y)>0.15) open++;
                 const pinch = Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05;
 
-                if(pinch) { STATE.gesture='PINCH'; status.innerText="👌 Pinch"; checkPhoto(); }
-                else if(open<=1) { STATE.gesture='FIST'; STATE.mode='TREE'; resetPhoto(); status.innerText="✊ Fist"; }
+                if(pinch) { 
+                    STATE.gesture='PINCH'; status.innerText="👌 Pinch (Grabbing closest)"; 
+                    // 【修复1：抓取逻辑】只要捏合，就尝试抓取最新的
+                    grabClosestPhoto();
+                }
+                else if(open<=1) { STATE.gesture='FIST'; STATE.mode='TREE'; resetPhoto(); status.innerText="✊ Fist (Tree)"; }
                 else if(open>=4) { 
                     STATE.gesture='OPEN'; 
                     if(STATE.mode==='ZOOM' && !pinch) { STATE.mode='SCATTER'; resetPhoto(); }
                     else if(STATE.mode!=='ZOOM') STATE.mode='SCATTER';
-                    status.innerText="🖐 Open"; 
+                    status.innerText="🖐 Open (Scatter)"; 
                 }
-            } else {
-                STATE.handVisible = false;
-                status.innerText = "No Hand";
-            }
+            } else { STATE.handVisible = false; status.innerText = "No Hand Detected"; }
         }
-        function checkPhoto() {
-            if(STATE.mode==='ZOOM' || !photosData.length) return;
-            STATE.mode='ZOOM';
-            photosData.forEach(p=>p.userData.focus=false);
-            photosData[photosData.length-1].userData.focus=true;
+
+        // 【修复1：新的抓取逻辑】计算距离，抓取最近的
+        function grabClosestPhoto() {
+            if(STATE.mode === 'ZOOM' || photosData.length === 0) return;
+            let closest = null; let minDst = Infinity;
+            photosData.forEach(p => {
+                p.userData.focus = false; // 先重置所有
+                const dst = camera.position.distanceTo(p.position); // 计算到相机的距离
+                if(dst < minDst) { minDst = dst; closest = p; }
+            });
+            if(closest) {
+                 STATE.mode='ZOOM'; closest.userData.focus=true;
+                 document.getElementById('gesture-status').innerText = "Got one!";
+            }
         }
         function resetPhoto() { photosData.forEach(p=>p.userData.focus=false); }
     </script>
