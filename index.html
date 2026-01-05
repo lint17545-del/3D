@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CNY Ink Horse (V10.0 Stable)</title>
+    <title>CNY Ink Horse (V11.0 Emergency)</title>
     <style>
-        /* 国风水墨意境背景 */
         body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #1a0808 0%, #000000 90%); font-family: "Microsoft YaHei", sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
@@ -16,8 +15,7 @@
         }
         h1 { margin: 0; font-weight: bold; letter-spacing: 5px; font-size: 32px; color: #ff3333; text-shadow: 0 0 20px rgba(200, 0, 0, 0.6); }
         .subtitle { font-size: 14px; color: #aaaaaa; letter-spacing: 2px; margin-top: 5px; }
-        
-        .version-tag { font-size: 10px; color: #00ffaa; margin-top: 10px; border: 1px solid #00ffaa; display: inline-block; padding: 2px 6px; background: rgba(0,0,0,0.6);}
+        .version-tag { font-size: 10px; color: #ff5555; margin-top: 10px; border: 1px solid #ff5555; display: inline-block; padding: 2px 6px; background: rgba(0,0,0,0.6);}
         
         #loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -32,16 +30,23 @@
             border: 2px solid #fff; cursor: pointer;
             font-size: 18px; letter-spacing: 4px; font-weight: bold;
             box-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
-            border-radius: 50px;
-            transition: 0.3s;
-            display: none; /* 默认隐藏，等JS加载完再显示 */
+            border-radius: 50px; transition: 0.3s;
+            display: none; /* 默认隐藏 */
         }
         #enter-btn:hover { background: #fff; transform: scale(1.05); }
 
+        /* 强制跳过链接 */
+        #force-skip {
+            margin-top: 20px; font-size: 12px; color: #666; 
+            text-decoration: underline; cursor: pointer;
+            display: none; /* 5秒后显示 */
+        }
+
         #debug-log {
             position: fixed; bottom: 10px; left: 10px; 
-            font-size: 12px; color: #666; font-family: monospace;
+            font-size: 12px; color: #444; font-family: monospace;
             z-index: 200; pointer-events: none;
+            max-width: 300px; overflow: hidden; white-space: nowrap;
         }
         
         #upload-btn {
@@ -57,22 +62,23 @@
 <body>
     <div id="loader">
         <div style="font-size: 24px; letter-spacing: 3px; color: #ff3333; text-shadow: 0 0 10px #ff0000;">龙马精神</div>
-        <div id="loading-text" style="font-size: 12px; color: #888; margin-top: 10px;">系统初始化中...</div>
+        <div id="loading-text" style="font-size: 12px; color: #888; margin-top: 10px;">正在连接全球节点...</div>
         <button id="enter-btn">点击唤醒 (AWAKEN)</button>
+        <div id="force-skip">⚠️ 太慢了？点此强制进入</div>
     </div>
 
-    <div id="debug-log">System Status: Initializing...</div>
+    <div id="debug-log">Log: Init...</div>
 
     <div id="ui-layer">
         <h1>万马奔腾</h1>
-        <div class="subtitle">INK PARTICLE ART V10.0</div>
-        <div class="version-tag">Stable UNPKG Source</div>
-        <div class="status" id="gesture-status">AI 模块加载中...</div>
+        <div class="subtitle">INK PARTICLE ART V11.0</div>
+        <div class="version-tag">Emergency Mode</div>
+        <div class="status" id="gesture-status">等待指令...</div>
         <div style="margin-top:15px; font-size:12px; color:#888; line-height: 1.8;">
             交互指南：<br>
-            ✌️ 剪刀手：全速奔跑 (Gallop)<br>
-            🖐 张开手：粒子散开 (Disperse)<br>
-            🖱️ 鼠标：粒子吸附交互
+            ✌️ 剪刀手：奔跑 (Gallop)<br>
+            🖐 张开手：散开 (Disperse)<br>
+            🖱️ 鼠标：粒子吸附
         </div>
         <label id="upload-btn">
             上传照片 (Upload)
@@ -83,45 +89,58 @@
     <video class="input_video" playsinline></video>
     <div id="canvas-container"></div>
 
-    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
-    <script src="https://unpkg.com/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://unpkg.com/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-    <script src="https://unpkg.com/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://unpkg.com/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
     <script type="x-shader/x-vertex" id="vertexshader">
         attribute float size;
         attribute vec3 customColor;
-        attribute float limbType;  // 0:身体, 1:鬃毛/尾, 2:腿
-        
+        attribute float limbType; 
         uniform float time;
-        uniform float runFactor;   // 0~1
-        uniform float scatter;     // 0~1
+        uniform float runFactor;
+        uniform float scatter;
         uniform vec3 mousePos;
-        
         varying vec3 vColor;
         varying float vAlpha;
-
         void main() {
             vColor = customColor;
             vAlpha = 1.0;
             vec3 pos = position;
-
-            // --- 1. 奔跑动画算法 ---
             float t = time * (1.5 + runFactor * 4.0);
-            
-            // 鬃毛飘动
-            if (limbType > 0.5 && limbType < 1.5) {
+            if (limbType > 0.5 && limbType < 1.5) { // 鬃毛
                 pos.x -= sin(t * 1.5 + pos.y*0.2) * (0.5 + runFactor); 
                 pos.y += cos(t * 2.0 + pos.x*0.2) * (0.3 + runFactor);
                 pos.z += sin(t * 1.0) * 0.5;
-            }
-            // 腿部圆周运动
-            else if (limbType > 1.5) {
+            } else if (limbType > 1.5) { // 腿
                 float phase = (pos.x > 0.0) ? 0.0 : 3.14;
                 float legPower = runFactor * 2.5;
                 pos.x += sin(t + phase) * legPower;
                 pos.y += max(0.0, cos(t + phase)) * legPower * 0.8;
+            } else { // 身
+                pos.y += sin(t * 2.0) * 0.2 * runFactor;
             }
-            // 身体起伏
+            float d = distance(pos.xy, mousePos.xy * 40.0);
+            if (d < 15.0) {
+                vec3 dir = normalize(pos - vec3(mousePos.xy * 40.0, 0.0));
+                pos += dir * (15.0 - d) * 0.3;
+            }
+            if (scatter > 0.0) {
+                pos.x += sin(pos.y * 10.0 + time) * scatter * 10.0;
+                vAlpha = 1.0 - scatter * 0.8;
+            }
+            vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+            gl_PointSize = size * (300.0 / -mvPosition.z);
+            gl_Position = projectionMatrix * mvPosition;
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fragmentshader">
+        varying vec3 vColor;
+        varying float vAlpha;
+        void main() {
+            vec2 cxy = 2.0 * gl_PointCoord - 1.0;
+            if (dot(cxy, c
