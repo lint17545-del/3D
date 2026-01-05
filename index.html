@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CNY Red Horse (China Speed V4.1)</title>
+    <title>Red Horse (V4.2 Fail-Safe)</title>
     <style>
-        body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #2a0000 0%, #000000 100%); font-family: "Microsoft YaHei", sans-serif; }
+        body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #2a0000 0%, #000000 100%); font-family: sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
         #ui-layer {
@@ -15,7 +15,7 @@
         }
         h1 { margin: 0; font-weight: bold; letter-spacing: 3px; font-size: 28px; color: #ff3333; text-shadow: 0 0 15px rgba(255, 0, 0, 0.8); }
         
-        .version-tag { font-size: 10px; color: #00ff00; margin-bottom: 10px; border: 1px solid #00ff00; display: inline-block; padding: 2px 5px; background: rgba(0,0,0,0.7);}
+        .version-tag { font-size: 10px; color: #ffffff; margin-bottom: 10px; border: 1px solid #ffffff; display: inline-block; padding: 2px 5px; background: rgba(0,0,0,0.7);}
         
         #loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -23,17 +23,22 @@
             justify-content: center; align-items: center; color: #ff3333;
             flex-direction: column; transition: opacity 0.5s;
         }
-        #start-btn {
-            padding: 12px 40px; border: 2px solid #ffd700; background: rgba(255, 0, 0, 0.2);
-            color: #ffd700; font-size: 18px; cursor: pointer; letter-spacing: 2px; font-weight: bold;
-            transition: 0.3s; margin-top: 20px; display: none; border-radius: 50px;
-        }
-        #start-btn:hover { background: #ffd700; color: #aa0000; box-shadow: 0 0 25px #ff0000; }
         
-        /* 强制跳过按钮 */
-        #skip-btn {
-            margin-top: 15px; font-size: 12px; color: #999; text-decoration: underline; cursor: pointer; display: none;
+        /* 强制跳过按钮 - 样式醒目 */
+        #force-start-btn {
+            margin-top: 20px;
+            padding: 10px 25px;
+            background: #ff3333;
+            color: white;
+            border: 2px solid #fff;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            border-radius: 5px;
+            display: block; /* 默认显示，防卡死 */
+            animation: pulse 2s infinite;
         }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
 
         #loading-text { margin-top: 10px; color: #aa5555; font-size: 14px; }
         
@@ -46,20 +51,20 @@
         input[type="file"] { display: none; }
         .input_video { display: none; }
         
-        #console-log { position: fixed; bottom: 0; left: 0; width: 100%; height: 100px; background: rgba(0,0,0,0.8); color: #ff5555; font-size: 10px; pointer-events: none; z-index: 999; overflow: auto; display: none; }
+        #console-log { position: fixed; bottom: 0; left: 0; width: 100%; height: 80px; background: rgba(0,0,0,0.8); color: #ff9999; font-size: 10px; pointer-events: none; z-index: 999; overflow: auto; display: block; }
     </style>
 </head>
 <body>
-    <div id="console-log"></div>
+    <div id="console-log">Log initialized...<br></div>
+    
     <div id="loader">
-        <div id="loading-text">正在从国内极速源加载...</div>
-        <button id="start-btn">开启新年 (START)</button>
-        <div id="skip-btn">太慢了？点此强制进入 (Force Enter)</div>
+        <div id="loading-text">正在尝试连接全球节点...</div>
+        <button id="force-start-btn">⚠️ 如果卡住，点此强制进入</button>
     </div>
 
     <div id="ui-layer">
-        <h1>龙马精神 · 新年快乐</h1>
-        <div class="version-tag">Ver 4.1 (China Speed)</div>
+        <h1>龙马精神</h1>
+        <div class="version-tag">Ver 4.2 (Fail-Safe)</div>
         <div class="status" id="gesture-status">等待启动...</div>
         <div style="margin-top:10px; font-size:14px; color:#ffaaaa; line-height: 1.6;">
             ✌️ <b>剪刀手: 奔跑 (Run)</b><br>
@@ -76,57 +81,68 @@
     <video class="input_video" playsinline></video>
     <div id="canvas-container"></div>
 
-    <script src="https://npm.elemecdn.com/three@0.128.0/build/three.min.js"></script>
-    <script src="https://npm.elemecdn.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="https://npm.elemecdn.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="https://npm.elemecdn.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-    <script src="https://npm.elemecdn.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-    <script src="https://npm.elemecdn.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
-    <script src="https://npm.elemecdn.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
     
-    <script src="https://npm.elemecdn.com/@mediapipe/camera_utils@0.3.1632432244/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://npm.elemecdn.com/@mediapipe/control_utils@0.6.1629159505/control_utils.js" crossorigin="anonymous"></script>
-    <script src="https://npm.elemecdn.com/@mediapipe/drawing_utils@0.3.1620248257/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://npm.elemecdn.com/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
     <script>
-        function log(msg) { const el = document.getElementById('console-log'); el.style.display='block'; el.innerHTML+=`> ${msg}<br>`; console.log(msg); }
-        
+        function log(msg) { 
+            const el = document.getElementById('console-log'); 
+            el.innerHTML += `> ${msg}<br>`; 
+            el.scrollTop = el.scrollHeight; // Auto scroll
+            console.log(msg); 
+        }
+
         window.onload = function() {
-            const startBtn = document.getElementById('start-btn'); 
+            const forceBtn = document.getElementById('force-start-btn'); 
             const loadingText = document.getElementById('loading-text');
-            const skipBtn = document.getElementById('skip-btn');
+            
+            log("Window loaded. Checking libs...");
 
-            // 3秒后如果还没加载完，显示强制跳过按钮
-            setTimeout(() => {
-                if(startBtn.style.display !== 'block') {
-                    loadingText.innerText = "资源加载较慢...";
-                    skipBtn.style.display = 'block';
-                }
-            }, 3000);
-
-            // 强制跳过点击事件
-            skipBtn.onclick = function() {
+            // 强制启动逻辑
+            forceBtn.onclick = function() {
+                log("User forced start.");
                 document.getElementById('loader').style.opacity = 0; 
                 setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+                
+                // 尝试初始化
                 initThree();
-                // 尝试后台静默启动摄像头
-                startCamera(); 
+                
+                // 尝试后台加载摄像头，失败也没关系
+                try {
+                    startCamera();
+                } catch(e) {
+                    log("Camera skipped in force mode.");
+                }
             };
 
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost') { log("Error: Not HTTPS."); loadingText.innerText="请使用 HTTPS"; return; }
-            
-            // 资源加载完成
-            loadingText.style.display = 'none'; 
-            startBtn.style.display = 'block';
-            skipBtn.style.display = 'none'; // 既然加载完了就隐藏跳过
+            // 检查 Three.js 是否加载
+            if(typeof THREE === 'undefined') {
+                log("Three.js failed to load!");
+                loadingText.innerText = "3D 引擎加载失败，请检查网络";
+                return;
+            } else {
+                log("Three.js loaded.");
+            }
 
-            startBtn.addEventListener('click', () => {
-                document.getElementById('loader').style.opacity = 0; 
-                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
-                initThree(); 
-                startCamera(); 
-            });
+            // 自动进入逻辑 (如果加载快的话)
+            if(typeof Hands !== 'undefined') {
+                log("AI Lib loaded. Auto-enabling button...");
+                forceBtn.innerText = "点击开始 (CLICK START)";
+                forceBtn.style.background = "#d4af37"; // 变金
+                forceBtn.style.color = "#000";
+            } else {
+                log("AI Lib missing. Waiting...");
+            }
         };
 
         const CONFIG = { particleCount: 2200, cameraZ: 70, colors: { red: 0xdd0000, gold: 0xffd700, darkRed: 0x550000 }};
@@ -137,9 +153,13 @@
         const particlesData = [], photosData = [];
         let currentLookAt = new THREE.Vector3(0, 5, 0);
         let runTime = 0; 
+        let isInit = false; // 防止重复初始化
 
         function initThree() {
+            if(isInit) return;
+            isInit = true;
             try {
+                log("Initializing 3D Scene...");
                 const container = document.getElementById('canvas-container');
                 scene = new THREE.Scene();
                 scene.fog = new THREE.FogExp2(0x1a0000, 0.0015); 
@@ -177,7 +197,7 @@
                     if (!STATE.handVisible && STATE.mode === 'SCATTER') updateCameraFromInput(e.clientX/window.innerWidth, e.clientY/window.innerHeight);
                 });
                 document.addEventListener('click', e => {
-                    if(['upload-btn', 'file-input', 'start-btn', 'skip-btn'].includes(e.target.id)) return;
+                    if(['upload-btn', 'file-input', 'force-start-btn'].includes(e.target.id)) return;
                     if(!STATE.handVisible && photosData.length > 0) { STATE.mode = STATE.mode === 'HORSE' ? 'SCATTER' : 'HORSE'; }
                 });
 
@@ -188,6 +208,7 @@
                 });
                 document.getElementById('file-input').addEventListener('change', handleImageUpload);
                 animate();
+                log("3D Scene Ready!");
             } catch(err) { log("3D Init Error: " + err.message); }
         }
 
@@ -274,4 +295,86 @@
                     if (d.part >= 2 && d.part < 3) { 
                         const legId = Math.floor((d.part - 2) * 10); 
                         const phase = (legId % 2 === 0) ? 0 : Math.PI; 
-                        tgt.x += Math.sin(runTime + phase) * 3 *
+                        tgt.x += Math.sin(runTime + phase) * 3 * STATE.runSpeed;
+                        tgt.y += Math.max(0, Math.cos(runTime*2 + phase) * 1.5 * STATE.runSpeed);
+                    }
+                    tgt.y += Math.sin(runTime * 2) * 0.5 * STATE.runSpeed; 
+                }
+                if(targetState === 'SCATTER') d.cur.y += Math.sin(time + i)*0.01;
+                d.cur.lerp(tgt, d.speed); dummy.position.copy(d.cur);
+                dummy.rotation.x += 0.01; dummy.rotation.y += 0.01;
+                dummy.updateMatrix(); particlesMesh.setMatrixAt(i, dummy.matrix);
+            }
+            particlesMesh.instanceMatrix.needsUpdate=true;
+            
+            photosData.forEach(p => {
+                const d = p.userData; let tgt = (targetState === 'SCATTER') ? d.scat : d.tree; let scale = 1;
+                if(d.focus) {
+                    const v = new THREE.Vector3(0,0,-15).applyQuaternion(camera.quaternion); tgt = camera.position.clone().add(v);
+                    p.lookAt(camera.position); scale=3.0; 
+                } else {
+                    p.lookAt(camera.position);
+                    if(STATE.runSpeed > 0.1) tgt.z += Math.sin(time*10)*0.1;
+                }
+                d.cur.lerp(tgt, 0.04); p.position.copy(d.cur); p.scale.lerp(new THREE.Vector3(scale,scale,scale), 0.1);
+            });
+
+            if(STATE.mode==='SCATTER' && STATE.handVisible) {
+                updateCameraFromInput(STATE.handX, STATE.handY);
+            } else {
+                camera.position.lerp(new THREE.Vector3(0, 10, CONFIG.cameraZ), 0.03);
+                let shakeY = (Math.random()-0.5) * STATE.runSpeed * 0.5;
+                currentLookAt.lerp(new THREE.Vector3(0, 5 + shakeY, 0), 0.05);
+                camera.lookAt(currentLookAt);
+            }
+            if(composer) composer.render(); else renderer.render(scene, camera);
+        }
+
+        function updateCameraFromInput(x, y) {
+            const theta = (x-0.5) * 4 * Math.PI; const phi = (1-y) * Math.PI * 0.5 + 0.2; 
+            const r = CONFIG.cameraZ * 1.1; 
+            const cx = r * Math.sin(theta) * Math.sin(phi); const cz = r * Math.cos(theta) * Math.sin(phi); const cy = r * Math.cos(phi) + 10;
+            camera.position.lerp(new THREE.Vector3(cx, cy, cz), 0.05); camera.lookAt(0, 10, 0);
+        }
+
+        async function startCamera() {
+            log("Attempting camera init..."); 
+            const video = document.getElementsByClassName('input_video')[0];
+            try {
+                if(typeof Hands === 'undefined') throw new Error("AI Library still loading...");
+                
+                // 使用 unpkg 源，这是官方源，最通用
+                const hands = new Hands({locateFile: (file) => `https://unpkg.com/@mediapipe/hands/${file}`});
+                hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+                hands.onResults(onResults);
+                const camera = new Camera(video, { onFrame: async () => { await hands.send({image: video}); }, width: 480, height: 360 });
+                await camera.start(); 
+                document.getElementById('gesture-status').innerText = "AI Active!"; 
+                log("Camera & AI Started Successfully!");
+            } catch(e) { 
+                log("Cam/AI Error: " + e.message); 
+                document.getElementById('gesture-status').innerText = "Camera Failed. Use Mouse."; 
+            }
+        }
+
+        function onResults(res) {
+            const status = document.getElementById('gesture-status');
+            if (res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
+                STATE.handVisible = true; const lm = res.multiHandLandmarks[0];
+                STATE.handX = STATE.handX * 0.8 + (1 - lm[0].x) * 0.2; STATE.handY = STATE.handY * 0.8 + lm[0].y * 0.2;
+                const tips=[8,12,16,20], bases=[5,9,13,17]; let open=0;
+                tips.forEach((t,i) => { if(Math.hypot(lm[t].x-lm[0].x, lm[t].y-lm[0].y) > Math.hypot(lm[bases[i]].x-lm[0].x, lm[bases[i]].y-lm[0].y)*1.3) open++; });
+                if(Math.hypot(lm[4].x-lm[0].x, lm[4].y-lm[0].y)>0.15) open++;
+                
+                const wrist = lm[0]; const iTip = lm[8], mTip = lm[12], rTip = lm[16], pTip = lm[20];
+                const iBase = lm[5], mBase = lm[9], rBase = lm[13], pBase = lm[17];
+                const isIndexUp = iTip.y < iBase.y; const isMiddleUp = mTip.y < mBase.y;
+                const isRingDown = rTip.y > rBase.y; const isPinkyDown = pTip.y > pBase.y;
+                const pinch = Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05; 
+
+                if (pinch) {
+                    STATE.gesture = 'PINCH'; status.innerText = "👌 捏合: 抓取 (Grab)"; raycastGrab();
+                } else if (isIndexUp && isMiddleUp && isRingDown && isPinkyDown && !pinch) {
+                    STATE.gesture = 'VICTORY'; STATE.mode = 'HORSE'; status.innerText = "✌️ 剪刀手: 奔跑 (RUN!)";
+                } else if (openCount >= 4) {
+                    STATE.gesture = 'OPEN'; STATE.mode =
