@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CNY Ink Horse (V12.0 Staticfile)</title>
+    <title>CNY Horse (V13.0 V3.4-Network)</title>
     <style>
-        body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #1a0808 0%, #000000 90%); font-family: "Microsoft YaHei", sans-serif; }
+        body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #1a0505 0%, #000000 90%); font-family: sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
         #ui-layer {
@@ -14,42 +14,31 @@
             text-shadow: 0 2px 5px rgba(0,0,0,0.9);
         }
         h1 { margin: 0; font-weight: bold; letter-spacing: 5px; font-size: 32px; color: #ff3333; text-shadow: 0 0 20px rgba(200, 0, 0, 0.6); }
-        .subtitle { font-size: 14px; color: #aaaaaa; letter-spacing: 2px; margin-top: 5px; }
-        
-        .version-tag { font-size: 10px; color: #ffff00; margin-top: 10px; border: 1px solid #ffff00; display: inline-block; padding: 2px 6px; background: rgba(0,0,0,0.6);}
+        .version-tag { font-size: 10px; color: #00ff00; margin-top: 10px; border: 1px solid #00ff00; display: inline-block; padding: 2px 6px; background: rgba(0,0,0,0.6);}
         
         #loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #050000; z-index: 100; display: flex;
             justify-content: center; align-items: center; color: #d4af37;
-            flex-direction: column; transition: opacity 0.5s;
+            flex-direction: column; transition: opacity 0.8s;
         }
         
-        /* 强制按钮 - 默认隐藏，由定时器强制显示 */
-        #force-enter-btn {
-            margin-top: 30px; padding: 15px 40px; 
-            background: #ff3333; color: #fff;
+        #start-btn {
+            margin-top: 30px; padding: 15px 50px; 
+            background: #d4af37; color: #000;
             border: 2px solid #fff; cursor: pointer;
-            font-size: 16px; font-weight: bold;
-            border-radius: 50px;
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.6);
-            display: none; /* 初始隐藏 */
-            pointer-events: auto;
-            z-index: 1001;
+            font-size: 18px; letter-spacing: 4px; font-weight: bold;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
+            border-radius: 50px; transition: 0.3s;
+            display: none; 
         }
-        #force-enter-btn:hover { background: #ff0000; transform: scale(1.05); }
+        #start-btn:hover { background: #fff; transform: scale(1.05); }
 
-        #loading-text { margin-top: 10px; color: #888; font-size: 12px; }
-
-        /* 调试日志面板 */
-        #debug-panel {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 120px;
-            background: rgba(0,0,0,0.85); color: #00ff00; font-family: monospace;
-            font-size: 11px; padding: 10px; overflow-y: auto; z-index: 2000;
-            border-top: 1px solid #333; pointer-events: none;
+        #debug-log {
+            position: fixed; bottom: 10px; left: 10px; 
+            font-size: 10px; color: #666; font-family: monospace;
+            z-index: 200; pointer-events: none; max-width: 50%;
         }
-        .log-error { color: #ff3333; }
-        .log-warn { color: #ffff00; }
         
         #upload-btn {
             pointer-events: auto; background: rgba(50, 0, 0, 0.6);
@@ -64,22 +53,20 @@
 <body>
     <div id="loader">
         <div style="font-size: 24px; letter-spacing: 3px; color: #ff3333;">龙马精神</div>
-        <div id="loading-text">正在连接 Staticfile 国内源...</div>
-        <button id="force-enter-btn">强制唤醒 (FORCE START)</button>
+        <div id="loading-text" style="font-size: 12px; color: #888; margin-top: 10px;">正在加载 (V3.4 配置)...</div>
+        <button id="start-btn">点击唤醒 (AWAKEN)</button>
     </div>
 
-    <div id="debug-panel"></div>
+    <div id="debug-log">Init...</div>
 
     <div id="ui-layer">
         <h1>万马奔腾</h1>
-        <div class="subtitle">INK PARTICLE V12.0</div>
-        <div class="version-tag">Staticfile Source</div>
+        <div class="version-tag">V13.0 (Proven Network)</div>
         <div class="status" id="gesture-status">等待指令...</div>
         <div style="margin-top:15px; font-size:12px; color:#888; line-height: 1.8;">
-            交互指南：<br>
-            ✌️ 剪刀手：全速奔跑 (Gallop)<br>
-            🖐 张开手：粒子散开 (Disperse)<br>
-            🖱️ 鼠标：吸附交互
+            ✌️ 剪刀手：奔跑 (Gallop)<br>
+            🖐 张开手：散开 (Disperse)<br>
+            🖱️ 鼠标：粒子吸附
         </div>
         <label id="upload-btn">
             上传照片
@@ -90,66 +77,18 @@
     <video class="input_video" playsinline></video>
     <div id="canvas-container"></div>
 
-    <script>
-        // 日志系统
-        function log(msg, type='info') {
-            const panel = document.getElementById('debug-panel');
-            const line = document.createElement('div');
-            line.textContent = `> ${msg}`;
-            if(type==='error') line.className = 'log-error';
-            if(type==='warn') line.className = 'log-warn';
-            panel.appendChild(line);
-            panel.scrollTop = panel.scrollHeight;
-            console.log(msg);
-        }
-
-        // 3秒后强制显示按钮，不管脚本有没有加载完
-        setTimeout(() => {
-            const btn = document.getElementById('force-enter-btn');
-            if(btn.style.display !== 'block') {
-                btn.style.display = 'block';
-                log("Wait timeout: Force button shown.", 'warn');
-                document.getElementById('loading-text').innerText = "加载较慢，请点击强制唤醒";
-            }
-        }, 3000);
-
-        // 按钮点击逻辑
-        document.getElementById('force-enter-btn').onclick = function() {
-            log("User clicked Force Start.");
-            
-            if(typeof THREE === 'undefined') {
-                alert("严重错误：Three.js 核心库未加载成功。\n请检查网络或刷新页面。");
-                log("FATAL: THREE missing.", 'error');
-                return;
-            }
-
-            document.getElementById('loader').style.opacity = 0;
-            setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
-            
-            try {
-                init();
-                log("3D Init Success.");
-            } catch(e) {
-                log("3D Init Failed: " + e.message, 'error');
-                alert("启动错误: " + e.message);
-            }
-
-            try { startAI(); } catch(e) { log("AI Start Skipped: " + e.message, 'warn'); }
-        };
-    </script>
-
-    <script src="https://cdn.staticfile.org/three.js/r128/three.min.js" onload="log('Three.js loaded')" onerror="log('Three.js FAILED', 'error')"></script>
-    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/postprocessing/EffectComposer.js" onload="log('Composer loaded')" onerror="log('Composer FAILED', 'warn')"></script>
-    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/postprocessing/RenderPass.js" onload="log('RenderPass loaded')" onerror="log('RenderPass FAILED', 'warn')"></script>
-    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/postprocessing/ShaderPass.js" onload="log('ShaderPass loaded')" onerror="log('ShaderPass FAILED', 'warn')"></script>
-    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/shaders/CopyShader.js" onload="log('CopyShader loaded')" onerror="log('CopyShader FAILED', 'warn')"></script>
-    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/shaders/LuminosityHighPassShader.js" onload="log('Luminosity loaded')" onerror="log('Luminosity FAILED', 'warn')"></script>
-    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/postprocessing/UnrealBloomPass.js" onload="log('BloomPass loaded')" onerror="log('BloomPass FAILED', 'warn')"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
     
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" onload="log('MP Camera loaded')" onerror="log('MP Camera FAILED', 'warn')"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" onload="log('MP Control loaded')" onerror="log('MP Control FAILED', 'warn')"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" onload="log('MP Drawing loaded')" onerror="log('MP Drawing FAILED', 'warn')"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" onload="log('MP Hands loaded')" onerror="log('MP Hands FAILED', 'warn')"></script>
+    <script src="https://unpkg.com/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
     <script type="x-shader/x-vertex" id="vertexshader">
         attribute float size; attribute vec3 customColor; attribute float limbType; 
@@ -158,24 +97,27 @@
         void main() {
             vColor = customColor; vAlpha = 1.0;
             vec3 pos = position;
+            // 奔跑动画
             float t = time * (1.5 + runFactor * 4.0);
-            if (limbType > 0.5 && limbType < 1.5) { 
+            if (limbType > 0.5 && limbType < 1.5) { // 鬃毛
                 pos.x -= sin(t * 1.5 + pos.y*0.2) * (0.5 + runFactor); 
                 pos.y += cos(t * 2.0 + pos.x*0.2) * (0.3 + runFactor);
                 pos.z += sin(t * 1.0) * 0.5;
-            } else if (limbType > 1.5) { 
+            } else if (limbType > 1.5) { // 腿
                 float phase = (pos.x > 0.0) ? 0.0 : 3.14;
                 float legPower = runFactor * 2.5;
                 pos.x += sin(t + phase) * legPower;
                 pos.y += max(0.0, cos(t + phase)) * legPower * 0.8;
-            } else { 
+            } else { // 身
                 pos.y += sin(t * 2.0) * 0.2 * runFactor;
             }
+            // 鼠标交互
             float d = distance(pos.xy, mousePos.xy * 40.0);
             if (d < 15.0) {
                 vec3 dir = normalize(pos - vec3(mousePos.xy * 40.0, 0.0));
                 pos += dir * (15.0 - d) * 0.3;
             }
+            // 散开
             if (scatter > 0.0) {
                 pos.x += sin(pos.y * 10.0 + time) * scatter * 10.0;
                 vAlpha = 1.0 - scatter * 0.8;
@@ -195,11 +137,41 @@
     </script>
 
     <script>
+        function log(msg) { document.getElementById('debug-log').innerText = msg; console.log(msg); }
+
         const CONFIG = { particleSize: 0.8, colors: { red: new THREE.Color(0xdd2222), gold: new THREE.Color(0xffd700), black: new THREE.Color(0x220000) } };
         let scene, camera, renderer, particles, uniforms;
         let mouse = new THREE.Vector2(-999, -999);
         const STATE = { mode: 'HORSE' }; 
 
+        // --- 1. 启动逻辑 (复刻 V3.4) ---
+        window.onload = function() {
+            const btn = document.getElementById('start-btn');
+            const txt = document.getElementById('loading-text');
+
+            if (typeof THREE === 'undefined') {
+                txt.innerText = "❌ 核心库加载失败 (请刷新)";
+                log("Error: Three.js missing");
+                return;
+            }
+
+            txt.style.display = 'none';
+            btn.style.display = 'block'; // 显示按钮
+
+            btn.onclick = () => {
+                document.getElementById('loader').style.opacity = 0;
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+                
+                try {
+                    init();
+                    startAI();
+                } catch(e) {
+                    alert("运行错误: " + e.message);
+                }
+            };
+        };
+
+        // --- 2. 绘制马剪影 (Artist) ---
         function drawHorseSilhouette() {
             const canvas = document.createElement('canvas');
             const size = 256; canvas.width = size; canvas.height = size;
@@ -271,4 +243,27 @@
         }
 
         function onMouseMove(e) { e.preventDefault(); mouse.x = (e.clientX / window.innerWidth) * 2 - 1; mouse.y = -(e.clientY / window.innerHeight) * 2 + 1; if(uniforms) uniforms.mousePos.value.set(mouse.x, mouse.y, 0); }
-        function onResize() { camera.aspect = window.innerWidth / window.innerHeight;
+        function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+        function animate() { requestAnimationFrame(animate); if(uniforms) { uniforms.time.value += 0.05; let tr = (STATE.mode === 'RUNNING') ? 1.0 : 0.0; let ts = (STATE.mode === 'SCATTER') ? 1.0 : 0.0; uniforms.runFactor.value += (tr - uniforms.runFactor.value) * 0.05; uniforms.scatter.value += (ts - uniforms.scatter.value) * 0.05; particles.rotation.y = Math.sin(uniforms.time.value * 0.1) * 0.15; } renderer.render(scene, camera); }
+
+        async function startAI() {
+            const video = document.getElementsByClassName('input_video')[0];
+            const stat = document.getElementById('gesture-status');
+            if(typeof Hands === 'undefined') { stat.innerText = "仅鼠标模式"; return; }
+            const hands = new Hands({locateFile: (file) => `https://unpkg.com/@mediapipe/hands/${file}`});
+            hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
+            hands.onResults(res => {
+                if(res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
+                    const lm = res.multiHandLandmarks[0];
+                    if (lm[8].y < lm[6].y && lm[12].y < lm[10].y && lm[16].y > lm[14].y) { STATE.mode = 'RUNNING'; stat.innerText = "✌️ 奔跑 (Gallop)"; } 
+                    else if (Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05) { stat.innerText = "👌 抓取 (Grab)"; } 
+                    else if (lm[8].y > lm[5].y) { STATE.mode = 'HORSE'; stat.innerText = "✊ 停止 (Stop)"; } 
+                    else { STATE.mode = 'SCATTER'; stat.innerText = "🖐 散开 (Scatter)"; }
+                } else { stat.innerText = "等待指令..."; STATE.mode = 'HORSE'; }
+            });
+            const cam = new Camera(video, { onFrame: async () => { await hands.send({image: video}); }, width: 480, height: 360 });
+            await cam.start(); stat.innerText = "AI 激活";
+        }
+    </script>
+</body>
+</html>
