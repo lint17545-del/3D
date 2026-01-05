@@ -1,11 +1,12 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CNY Red Horse (Majestic V7.0)</title>
+    <title>CNY Red Horse (Skeleton V8.0)</title>
     <style>
-        body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #330000 0%, #000000 100%); font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #220000 0%, #000000 100%); font-family: sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
         #ui-layer {
@@ -14,8 +15,7 @@
             text-shadow: 0 2px 4px rgba(0,0,0,0.9);
         }
         h1 { margin: 0; font-weight: bold; letter-spacing: 3px; font-size: 28px; color: #ff3333; text-shadow: 0 0 15px rgba(255, 0, 0, 0.8); }
-        
-        .version-tag { font-size: 10px; color: #ffcc00; margin-bottom: 10px; border: 1px solid #ffcc00; display: inline-block; padding: 2px 5px; background: rgba(0,0,0,0.7);}
+        .version-tag { font-size: 10px; color: #00ff00; margin-bottom: 10px; border: 1px solid #00ff00; display: inline-block; padding: 2px 5px; background: rgba(0,0,0,0.7);}
         
         #loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -24,12 +24,11 @@
             flex-direction: column; transition: opacity 0.5s;
         }
         #start-btn {
-            padding: 12px 30px; border: 1px solid #d4af37; background: rgba(212, 175, 55, 0.1);
-            color: #d4af37; font-size: 16px; cursor: pointer; letter-spacing: 2px;
-            transition: 0.3s; margin-top: 20px; display: none;
+            padding: 15px 40px; background: #ffd700; color: #550000;
+            border: 2px solid #ff3333; cursor: pointer; font-weight: bold; font-size: 16px;
+            border-radius: 50px; box-shadow: 0 0 20px rgba(255, 0, 0, 0.5); display: none;
         }
-        #start-btn:hover { background: #d4af37; color: #000; box-shadow: 0 0 20px #d4af37; }
-        #loading-text { margin-top: 10px; color: #888; font-size: 14px; }
+        #loading-text { margin-top: 10px; color: #aa5555; font-size: 14px; }
         
         #upload-btn {
             pointer-events: auto; background: rgba(50, 0, 0, 0.8);
@@ -39,23 +38,20 @@
         }
         input[type="file"] { display: none; }
         .input_video { display: none; }
-        
-        #console-log { position: fixed; bottom: 0; left: 0; width: 100%; height: 100px; background: rgba(0,0,0,0.8); color: red; font-size: 10px; pointer-events: none; z-index: 999; overflow: auto; display: none; }
     </style>
 </head>
 <body>
-    <div id="console-log"></div>
     <div id="loader">
-        <div id="loading-text">正在塑造神骏 (Sculpting Horse)...</div>
+        <div id="loading-text">正在组装骨骼粒子 (Assembling Skeleton)...</div>
         <button id="start-btn">开启新年 (START)</button>
     </div>
 
     <div id="ui-layer">
-        <h1>龙马精神 · 新年快乐</h1>
-        <div class="version-tag">Ver 7.0 (Majestic Anatomy)</div>
+        <h1>龙马精神 · 2026</h1>
+        <div class="version-tag">Ver 8.0 (Skeleton Rig)</div>
         <div class="status" id="gesture-status">等待启动...</div>
         <div style="margin-top:5px; font-size:12px; color:#ffaaaa; line-height: 1.5;">
-            ✌️ 剪刀手: 奔跑 (Run) | 🖐 张开: 漫游 <br>
+            ✌️ 剪刀手: 奔跑 (Gallop) | 🖐 张开: 漫游 <br>
             👌 捏合: 抓取照片
         </div>
         <label id="upload-btn">
@@ -80,196 +76,416 @@
     <script src="https://unpkg.com/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
     <script>
-        function log(msg) { const el = document.getElementById('console-log'); el.style.display='block'; el.innerHTML+=`> ${msg}<br>`; console.log(msg); }
-        window.onload = function() {
-            const startBtn = document.getElementById('start-btn'); const loadingText = document.getElementById('loading-text');
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost') { log("Error: Not HTTPS."); loadingText.innerText="Please use HTTPS"; return; }
-            loadingText.style.display = 'none'; startBtn.style.display = 'block';
-            startBtn.addEventListener('click', () => {
-                document.getElementById('loader').style.opacity = 0; setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
-                initThree(); startCamera(); 
-            });
-        };
-
+        // --- 全局变量 ---
         const CONFIG = { 
-            // 【修改】增加粒子数以获得更密实的模型
-            particleCount: 3800, 
-            cameraZ: 75, 
-            colors: { red: 0xdd0000, gold: 0xffd700, darkRed: 0x440000 } 
+            cameraZ: 60, 
+            colors: { red: 0xff0000, gold: 0xffcc00, white: 0xffffff } 
         };
         const STATE = { mode: 'HORSE', handVisible: false, handX: 0.5, handY: 0.5, gesture: 'NONE', runSpeed: 0 };
         
-        let scene, camera, renderer, composer, particlesMesh, photoGroup, dummy = new THREE.Object3D();
+        let scene, camera, renderer, composer;
+        let photoGroup;
         let raycaster = new THREE.Raycaster();
-        const centerVector = new THREE.Vector2(0, 0); 
-        const particlesData = [], photosData = [];
-        let currentLookAt = new THREE.Vector3(0, 8, 0);
+        let centerVector = new THREE.Vector2(0, 0); 
+        let photosData = [];
+        let currentLookAt = new THREE.Vector3(0, 5, 0);
         let runTime = 0;
 
-        function initThree() {
-            try {
-                const container = document.getElementById('canvas-container');
-                scene = new THREE.Scene();
-                scene.fog = new THREE.FogExp2(0x1a0000, 0.0012); 
+        // 骨骼系统变量
+        let horseRoot; // 整个马的容器
+        let joints = {}; // 存储所有关节以便动画控制
+        let horseParts = []; // 存储所有带粒子的部分
 
-                camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000); 
-                camera.position.set(0, 12, CONFIG.cameraZ);
-                camera.lookAt(0, 8, 0);
-
-                renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                renderer.toneMapping = THREE.ACESFilmicToneMapping;
-                renderer.toneMappingExposure = 1.4; 
-                container.appendChild(renderer.domElement);
-
-                // 加强金色光照，突出轮廓
-                scene.add(new THREE.AmbientLight(0xffffff, 0.1));
-                const l1 = new THREE.PointLight(CONFIG.colors.gold, 4.0, 200); l1.position.set(30, 40, 40); scene.add(l1);
-                const l2 = new THREE.PointLight(CONFIG.colors.red, 2.5, 150); l2.position.set(-30, 10, 20); scene.add(l2);
-                // 顶部塑形光
-                const l3 = new THREE.DirectionalLight(0xffcc00, 1.2); l3.position.set(0, 50, 10); scene.add(l3);
-
-                try {
-                    const renderScene = new THREE.RenderPass(scene, camera);
-                    // 增强辉光，让它看起来更神圣
-                    const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.6, 0.4, 0.88);
-                    composer = new THREE.EffectComposer(renderer);
-                    composer.addPass(renderScene);
-                    composer.addPass(bloomPass);
-                } catch(e) { log("Bloom skipped."); composer = null; }
-
-                createHorseParticlesV2(); // 使用新的建模函数
-                photoGroup = new THREE.Group();
-                scene.add(photoGroup);
-
-                document.addEventListener('mousemove', e => {
-                    if (!STATE.handVisible && STATE.mode === 'SCATTER') updateCameraFromInput(e.clientX/window.innerWidth, e.clientY/window.innerHeight);
-                });
-                document.addEventListener('click', e => {
-                    if(['upload-btn', 'file-input', 'start-btn'].includes(e.target.id)) return;
-                    if(!STATE.handVisible && photosData.length > 0) { STATE.mode = STATE.mode === 'HORSE' ? 'SCATTER' : 'HORSE'; }
-                });
-
-                window.addEventListener('resize', () => {
-                    camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
-                    renderer.setSize(window.innerWidth, window.innerHeight);
-                    if(composer) composer.setSize(window.innerWidth, window.innerHeight);
-                });
-                document.getElementById('file-input').addEventListener('change', handleImageUpload);
-                animate();
-            } catch(err) { log("3D Init Error: " + err.message); }
-        }
-
-        // 辅助函数：点是否在椭球体内
-        function inEllipsoid(p, center, size, rotY = 0, rotZ = 0) {
-            let pos = p.clone().sub(center);
-            if(rotY) pos.applyAxisAngle(new THREE.Vector3(0,1,0), -rotY);
-            if(rotZ) pos.applyAxisAngle(new THREE.Vector3(0,0,1), -rotZ);
-            return (pos.x*pos.x)/(size.x*size.x) + (pos.y*pos.y)/(size.y*size.y) + (pos.z*pos.z)/(size.z*size.z) <= 1;
-        }
-
-        // 【核心修改】V7.0 全新的数学建模函数
-        function createHorseParticlesV2() {
-            // 花瓣粒子更小更密
-            const geo = new THREE.TetrahedronGeometry(0.4, 0); 
-            geo.scale(1, 1.8, 0.6);
-            const mat = new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.4, metalness: 0.6 });
-            particlesMesh = new THREE.InstancedMesh(geo, mat, CONFIG.particleCount);
-            const col = new THREE.Color();
+        window.onload = function() {
+            const startBtn = document.getElementById('start-btn');
+            const loadingText = document.getElementById('loading-text');
             
-            let count = 0;
-            const center = new THREE.Vector3(0, 12, 0); // 马的中心高度提升
-
-            while(count < CONFIG.particleCount) {
-                // 在一个大范围内随机取点
-                let p = new THREE.Vector3(
-                    (Math.random()-0.5) * 40,
-                    Math.random() * 35,
-                    (Math.random()-0.5) * 40
-                );
-                let valid = false;
-                let partType = 0; // 0:躯干, 1:头颈, 2:腿, 3:鬃毛尾巴
-
-                // --- 1. 健壮躯干 (Torso) ---
-                // 主躯干
-                if(inEllipsoid(p, center.clone().add(new THREE.Vector3(0,0,0)), new THREE.Vector3(5, 6, 11))) { valid=true; partType=0; }
-                // 宽阔胸肌
-                if(inEllipsoid(p, center.clone().add(new THREE.Vector3(0,1,6)), new THREE.Vector3(5.5, 7, 5))) { valid=true; partType=0; }
-                // 结实臀部
-                if(inEllipsoid(p, center.clone().add(new THREE.Vector3(0,2,-7)), new THREE.Vector3(5.2, 6.5, 5.5))) { valid=true; partType=0; }
-
-                // --- 2. 昂扬头颈 (Neck & Head) ---
-                // 颈部 (向上向后倾斜)
-                if(!valid && inEllipsoid(p, center.clone().add(new THREE.Vector3(0, 10, 9)), new THREE.Vector3(2.5, 8, 4), 0, -Math.PI/6)) { valid=true; partType=1; }
-                // 头部 (高昂)
-                if(!valid && inEllipsoid(p, center.clone().add(new THREE.Vector3(0, 16, 12)), new THREE.Vector3(2.2, 3.5, 4.5), 0, Math.PI/8)) { valid=true; partType=1; }
-                // 面颊/口鼻
-                 if(!valid && inEllipsoid(p, center.clone().add(new THREE.Vector3(0, 14.5, 15.5)), new THREE.Vector3(1.5, 2, 2.5))) { valid=true; partType=1; }
-
-
-                // --- 3. 优美四肢 (Legs - 带关节的数学模拟) ---
-                if(!valid) {
-                    const legX = 3.5; // 腿间距
-                    // 前腿 (稍微弯曲腾空)
-                    if(inEllipsoid(p, new THREE.Vector3(legX, 8, 7), new THREE.Vector3(1.8, 5, 2.5), 0, Math.PI/12) || // 上臂
-                       inEllipsoid(p, new THREE.Vector3(legX, 2, 8.5), new THREE.Vector3(1.2, 4, 1.5), 0, -Math.PI/8)) // 前臂
-                    { valid=true; partType=2; }
-                    
-                    if(inEllipsoid(p, new THREE.Vector3(-legX, 8, 7), new THREE.Vector3(1.8, 5, 2.5), 0, Math.PI/12) ||
-                       inEllipsoid(p, new THREE.Vector3(-legX, 2, 8.5), new THREE.Vector3(1.2, 4, 1.5), 0, -Math.PI/8))
-                    { valid=true; partType=2; }
-
-                    // 后腿 (充满力量的飞节角度)
-                    if(inEllipsoid(p, new THREE.Vector3(legX, 9, -8), new THREE.Vector3(2.2, 6, 3.5), 0, -Math.PI/10) || // 大腿
-                       inEllipsoid(p, new THREE.Vector3(legX, 3, -11), new THREE.Vector3(1.5, 5, 2), 0, Math.PI/6)) // 小腿
-                    { valid=true; partType=2; }
-                     if(inEllipsoid(p, new THREE.Vector3(-legX, 9, -8), new THREE.Vector3(2.2, 6, 3.5), 0, -Math.PI/10) ||
-                       inEllipsoid(p, new THREE.Vector3(-legX, 3, -11), new THREE.Vector3(1.5, 5, 2), 0, Math.PI/6))
-                    { valid=true; partType=2; }
-                }
-
-                // --- 4. 鬃毛与尾巴 (Mane & Tail - 飘逸感) ---
-                // 鬃毛 (颈背沿线)
-                if(!valid && p.x > -0.5 && p.x < 0.5 && p.y > 12 && p.y < 20 && p.z > 5 && p.z < 14) {
-                     // 简单的线性判断加上一点随机扰动
-                     if (p.y > (p.z * 0.8 + 8) + (Math.random()-0.5)*2 ) { valid=true; partType=3; }
-                }
-                // 尾巴 (身后飘扬)
-                if(!valid && p.z < -9 && p.y < 13 && p.y > 2) {
-                    let tailCurve = Math.sin((p.z+10)*0.3) * 3; // 尾巴曲线
-                    if(p.x > tailCurve - 1.5 && p.x < tailCurve + 1.5 && p.y > (p.z*0.5 + 8) ) { valid=true; partType=3; }
-                }
-
-
-                // 如果点在模型内，则创建粒子
-                if(valid) {
-                    // 颜色分布：金色集中在鬃毛尾巴和关节处，身体为深红
-                    let isGold = false;
-                    if(partType === 3 && Math.random() > 0.3) isGold = true; // 鬃毛尾巴多金
-                    else if (partType === 2 && p.y < 5 && Math.random() > 0.7) isGold = true; // 蹄子附近
-                    else if (Math.random() > 0.88) isGold = true; // 全身随机散布
-
-                    if (isGold) col.setHex(CONFIG.colors.gold); else col.setHex(CONFIG.colors.red);
-                    
-                    particlesMesh.setColorAt(count, col);
-                    dummy.position.copy(p);
-                    // 花瓣随机角度
-                    dummy.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
-                    // 鬃毛尾巴的粒子稍微大一点，更飘逸
-                    let s = (partType === 3) ? (0.6 + Math.random()*0.6) : (0.4 + Math.random()*0.5);
-                    dummy.scale.setScalar(s);
-                    dummy.updateMatrix();
-                    particlesMesh.setMatrixAt(count, dummy.matrix);
-                    
-                    // 散开范围增加到 120
-                    particlesData.push({ idx: count, part: partType, cur: p.clone(), horsePos: p.clone(), 
-                        scat: new THREE.Vector3((Math.random()-0.5)*120, (Math.random()-0.5)*120, (Math.random()-0.5)*120), 
-                        speed: 0.015 + Math.random() * 0.025 });
-                    count++;
-                }
+            // 简单检测 Three.js
+            if(typeof THREE === 'undefined') {
+                loadingText.innerText = "资源加载失败，请刷新";
+                return;
             }
-            scene.add(particlesMesh);
+
+            loadingText.style.display = 'none';
+            startBtn.style.display = 'block';
+
+            startBtn.addEventListener('click', () => {
+                document.getElementById('loader').style.opacity = 0; 
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+                initThree(); 
+                startCamera(); 
+            });
+        };
+
+        function initThree() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            // 视频同款：底部云雾，背景星空
+            scene.fog = new THREE.FogExp2(0x110000, 0.002); 
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000); 
+            camera.position.set(0, 10, CONFIG.cameraZ);
+            camera.lookAt(0, 5, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2; 
+            container.appendChild(renderer.domElement);
+
+            // 灯光：模仿视频里的轮廓光
+            scene.add(new THREE.AmbientLight(0xffffff, 0.1));
+            const sunLight = new THREE.DirectionalLight(0xffd700, 1.5); // 金色主光
+            sunLight.position.set(20, 30, 20);
+            scene.add(sunLight);
+            const rimLight = new THREE.SpotLight(0xff0000, 5.0); // 红色边缘光
+            rimLight.position.set(-20, 10, -10);
+            rimLight.lookAt(0,0,0);
+            scene.add(rimLight);
+            
+            // 辉光
+            try {
+                const renderScene = new THREE.RenderPass(scene, camera);
+                const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+                bloomPass.threshold = 0.5; bloomPass.strength = 1.0; bloomPass.radius = 0.5;
+                composer = new THREE.EffectComposer(renderer);
+                composer.addPass(renderScene);
+                composer.addPass(bloomPass);
+            } catch(e) { composer = null; }
+
+            // === 核心：构建骨骼马 ===
+            buildHorseSkeleton();
+            
+            // 照片组
+            photoGroup = new THREE.Group();
+            scene.add(photoGroup);
+
+            // 云雾地面
+            createCloudFloor();
+
+            // 事件
+            document.addEventListener('mousemove', e => {
+                if (!STATE.handVisible && STATE.mode === 'SCATTER') updateCameraFromInput(e.clientX/window.innerWidth, e.clientY/window.innerHeight);
+            });
+            document.addEventListener('click', e => {
+                if(['upload-btn', 'file-input', 'start-btn'].includes(e.target.id)) return;
+                if(!STATE.handVisible && photosData.length > 0) { STATE.mode = STATE.mode === 'HORSE' ? 'SCATTER' : 'HORSE'; }
+            });
+            window.addEventListener('resize', onResize);
+            document.getElementById('file-input').addEventListener('change', handleImageUpload);
+            
+            animate();
+        }
+
+        // --- 1. 骨骼构建系统 ---
+        // 这是一个辅助函数，用来创建一个填充了粒子的“身体部件”
+        function createParticleBone(geo, count, color, scale = 1) {
+            // 1. 在几何体表面/内部采样点
+            const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({visible: false}));
+            const sampler = new THREE.Mesh(geo); // 临时用
+            const posAttribute = geo.getAttribute('position');
+            
+            // 粒子几何体 (花瓣/菱形)
+            const pGeo = new THREE.TetrahedronGeometry(0.15 * scale, 0);
+            pGeo.scale(1, 1.5, 0.5);
+            
+            const pMat = new THREE.MeshBasicMaterial({ color: color });
+            const instancedMesh = new THREE.InstancedMesh(pGeo, pMat, count);
+            
+            const dummy = new THREE.Object3D();
+            const tempVec = new THREE.Vector3();
+
+            for(let i=0; i<count; i++) {
+                // 简单的体积采样：随机取顶点插值，或者直接用包围盒随机剔除
+                // 这里用简化的包围盒法，效率高
+                // 为了形状准确，我们用几何体顶点随机加权
+                const a = Math.floor(Math.random() * posAttribute.count);
+                const b = Math.floor(Math.random() * posAttribute.count);
+                const c = Math.floor(Math.random() * posAttribute.count);
+                
+                const w1 = Math.random(); const w2 = Math.random(); const w3 = Math.random();
+                const s = w1 + w2 + w3;
+                
+                tempVec.x = (posAttribute.getX(a)*w1 + posAttribute.getX(b)*w2 + posAttribute.getX(c)*w3) / s;
+                tempVec.y = (posAttribute.getY(a)*w1 + posAttribute.getY(b)*w2 + posAttribute.getY(c)*w3) / s;
+                tempVec.z = (posAttribute.getZ(a)*w1 + posAttribute.getZ(b)*w2 + posAttribute.getZ(c)*w3) / s;
+
+                // 稍微抖动增加体积感
+                tempVec.x += (Math.random()-0.5)*0.2;
+                tempVec.y += (Math.random()-0.5)*0.2;
+                tempVec.z += (Math.random()-0.5)*0.2;
+
+                dummy.position.copy(tempVec);
+                dummy.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+                dummy.scale.setScalar(0.5 + Math.random());
+                dummy.updateMatrix();
+                instancedMesh.setMatrixAt(i, dummy.matrix);
+            }
+            
+            mesh.add(instancedMesh);
+            horseParts.push({ mesh: instancedMesh, baseMatrix: instancedMesh.instanceMatrix.clone() }); // 保存以便散开动画
+            return mesh;
+        }
+
+        function buildHorseSkeleton() {
+            horseRoot = new THREE.Group();
+            scene.add(horseRoot);
+            
+            const red = CONFIG.colors.red;
+            const gold = CONFIG.colors.gold;
+
+            // 1. 身体 (Torso) - 核心
+            // 使用拉长的球体
+            const bodyGeo = new THREE.SphereGeometry(3.5, 16, 16);
+            bodyGeo.scale(1, 0.8, 1.8); 
+            joints.body = createParticleBone(bodyGeo, 800, red, 1.2);
+            joints.body.position.set(0, 8, 0);
+            horseRoot.add(joints.body);
+
+            // 2. 脖子 (Neck) - 连在身体上
+            const neckGeo = new THREE.CylinderGeometry(1.2, 2.5, 5, 8);
+            // 调整中心点，让旋转轴在底部
+            neckGeo.translate(0, 2.5, 0); 
+            // 稍微弯曲一点造型
+            joints.neck = createParticleBone(neckGeo, 400, red);
+            joints.neck.position.set(0, 1.5, 4.5); // 身体前方偏上
+            joints.neck.rotation.x = Math.PI / 4; // 昂起
+            joints.body.add(joints.neck);
+
+            // 3. 头 (Head)
+            const headGeo = new THREE.BoxGeometry(2, 2.5, 4.5);
+            headGeo.translate(0, 0, 1.5); // 鼻子向前
+            joints.head = createParticleBone(headGeo, 250, gold); // 金色的头
+            joints.head.position.set(0, 5, 0); // 脖子顶端
+            joints.head.rotation.x = -Math.PI / 6; // 微微低头
+            joints.neck.add(joints.head);
+
+            // 4. 四肢 (Legs) - 关键的关节结构
+            // 辅助函数：造腿
+            function createLeg(offsetX, offsetZ, isBack) {
+                const legGroup = new THREE.Group();
+                legGroup.position.set(offsetX, 0, offsetZ);
+                
+                // 大腿 (Thigh)
+                const thighGeo = new THREE.CylinderGeometry(1.2, 0.8, 4.5, 6);
+                thighGeo.translate(0, -2.25, 0); // 轴心在顶端
+                const thigh = createParticleBone(thighGeo, 150, red);
+                legGroup.add(thigh);
+
+                // 小腿 (Shin)
+                const shinGeo = new THREE.CylinderGeometry(0.7, 0.5, 4, 6);
+                shinGeo.translate(0, -2, 0);
+                const shin = createParticleBone(shinGeo, 120, isBack ? red : gold); // 前腿金色
+                shin.position.set(0, -4.5, 0);
+                thigh.add(shin);
+
+                // 蹄子 (Hoof)
+                const hoofGeo = new THREE.CylinderGeometry(0.6, 0.8, 1.5, 6);
+                hoofGeo.translate(0, -0.75, 0);
+                const hoof = createParticleBone(hoofGeo, 80, gold);
+                hoof.position.set(0, -4, 0);
+                shin.add(hoof);
+
+                return { root: legGroup, thigh: thigh, shin: shin, hoof: hoof };
+            }
+
+            // 前左 FL
+            joints.fl = createLeg(1.8, 4, false);
+            joints.body.add(joints.fl.root);
+            
+            // 前右 FR
+            joints.fr = createLeg(-1.8, 4, false);
+            joints.body.add(joints.fr.root);
+
+            // 后左 BL
+            joints.bl = createLeg(1.8, -4, true);
+            joints.body.add(joints.bl.root);
+
+            // 后右 BR
+            joints.br = createLeg(-1.8, -4, true);
+            joints.body.add(joints.br.root);
+
+            // 5. 鬃毛和尾巴 (粒子流)
+            // 尾巴
+            const tailGeo = new THREE.ConeGeometry(1, 7, 8);
+            tailGeo.translate(0, -3.5, 0);
+            tailGeo.rotateX(-Math.PI/4);
+            joints.tail = createParticleBone(tailGeo, 300, gold);
+            joints.tail.position.set(0, 1, -5);
+            joints.body.add(joints.tail);
+        }
+
+        function createCloudFloor() {
+            const geo = new THREE.PlaneGeometry(200, 200, 20, 20);
+            const mat = new THREE.MeshBasicMaterial({ color: 0x440000, transparent: true, opacity: 0.3, wireframe: true });
+            const floor = new THREE.Mesh(geo, mat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -8;
+            scene.add(floor);
+        }
+
+        // --- 2. 动画系统 ---
+        function updateHorseAnimation(time, speed) {
+            // 如果速度为0，进入呼吸待机状态
+            const t = time * (3 + speed * 8); // 奔跑频率
+            
+            // 身体起伏
+            horseRoot.position.y = Math.sin(t * 2) * 0.5 * speed;
+            horseRoot.rotation.x = Math.sin(t) * 0.1 * speed; // 身体前后摇摆
+
+            // 脖子和头
+            joints.neck.rotation.x = Math.PI / 4 + Math.sin(t) * 0.1;
+            joints.head.rotation.x = -Math.PI / 6 + Math.cos(t) * 0.1;
+
+            // 腿部步态 (Gallop/Canter Cycle)
+            // 前后腿相位差，左右相位差
+            // 简化的跑步逻辑：
+            // FL & FR 稍微错开, BL & BR 稍微错开
+            
+            const animateLeg = (leg, offset) => {
+                // 大腿摆动
+                const thighAngle = Math.sin(t + offset) * 0.8 * speed;
+                leg.thigh.rotation.x = thighAngle;
+                
+                // 小腿 (膝盖) - 只能向后弯
+                const shinAngle = Math.sin(t + offset - 1.5) * 0.8 * speed;
+                leg.shin.rotation.x = Math.abs(shinAngle); // 膝盖弯曲
+                
+                // 蹄子
+                leg.hoof.rotation.x = Math.sin(t + offset - 1.0) * 0.5 * speed;
+            };
+
+            // 前腿
+            animateLeg(joints.fl, 0);
+            animateLeg(joints.fr, 0.5); // 稍微错开
+
+            // 后腿 (反相)
+            animateLeg(joints.bl, Math.PI);
+            animateLeg(joints.br, Math.PI + 0.5);
+
+            // 尾巴
+            joints.tail.rotation.x = Math.sin(time * 5) * 0.2 + (speed * 0.5); // 跑起来尾巴翘高
+            joints.tail.rotation.z = Math.cos(time * 8) * 0.3; // 左右摆
+        }
+
+        // --- 3. 散开与聚合 ---
+        function updateScatter(isScatter, time) {
+            // 我们不一个个移动粒子，而是把整个骨骼炸开
+            // 或者：遍历所有 horseParts，修改 instancedMesh 的矩阵
+            // 这里为了性能，我们做个简单的：如果散开，就旋转整个 horseParts 里的粒子
+            
+            horseParts.forEach((part, index) => {
+                const mesh = part.mesh;
+                const count = mesh.count;
+                const dummy = new THREE.Object3D();
+                
+                // 如果是散开模式，我们需要每帧更新粒子位置（性能消耗大，但效果好）
+                // 为了流畅，我们只在切换时做一个过渡，或者只让它们整体膨胀
+                
+                // 简单方案：散开时，让整个马透明度降低，显示周围的随机照片
+                // 或者：让骨骼关节乱飞
+                if (isScatter) {
+                    // 让关节乱飞
+                    mesh.parent.rotation.x += 0.01;
+                    mesh.parent.rotation.y += 0.02;
+                    mesh.parent.position.add(new THREE.Vector3((Math.random()-0.5), (Math.random()-0.5), (Math.random()-0.5)));
+                } else {
+                    // 复位逻辑在 updateHorseAnimation 里会覆盖 rotation/position
+                    // 但需要把 position 的累积偏移清零
+                    if (mesh.parent !== horseRoot && mesh.parent.parent !== horseRoot) {
+                         // 这有点复杂，因为是层级结构。
+                         // V8.0 策略：散开模式下，仅仅切换相机视角，不做粒子炸散，
+                         // 因为骨骼粒子炸散很难复原。
+                         // 替代方案：散开时，马变透明/消失，显示照片海。
+                    }
+                }
+            });
+            
+            if (isScatter) {
+                horseRoot.visible = Math.sin(time * 10) > 0; // 闪烁效果
+                horseRoot.visible = false; // 直接隐藏马，看照片
+            } else {
+                horseRoot.visible = true;
+            }
+        }
+
+        // --- 4. 主循环 ---
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = Date.now() * 0.001;
+            
+            // 状态控制
+            let targetSpeed = 0;
+            if (STATE.gesture === 'VICTORY') targetSpeed = 1.2; // 狂奔
+            else if (STATE.gesture === 'FIST') targetSpeed = 0; // 停止
+            else targetSpeed = 0.2; // 慢走 (默认)
+
+            // 平滑速度
+            STATE.runSpeed += (targetSpeed - STATE.runSpeed) * 0.05;
+            runTime += STATE.runSpeed * 0.1;
+
+            if (STATE.mode === 'HORSE') {
+                updateHorseAnimation(runTime, STATE.runSpeed);
+                horseRoot.visible = true;
+                
+                // 奔跑时相机跟随震动
+                if (STATE.runSpeed > 0.5) {
+                    camera.position.y = 10 + Math.sin(time * 20) * 0.2;
+                }
+            } else {
+                // 散开模式：隐藏马
+                horseRoot.visible = false;
+            }
+
+            // 照片动画
+            photosData.forEach(p => {
+                const d = p.userData; 
+                let tgt = (STATE.mode === 'SCATTER') ? d.scat : d.tree; // d.tree 是收拢位置
+                
+                // 如果是马模式，照片收拢到马周围环绕
+                if (STATE.mode === 'HORSE') {
+                    // 让照片在马周围转圈
+                    const angle = time * 0.5 + d.angleOffset;
+                    tgt.x = Math.cos(angle) * 20;
+                    tgt.z = Math.sin(angle) * 20;
+                    tgt.y = 10 + Math.sin(time + d.angleOffset)*5;
+                }
+
+                let scale = 1;
+                if(d.focus) {
+                    const v = new THREE.Vector3(0,0,-15).applyQuaternion(camera.quaternion); 
+                    tgt = camera.position.clone().add(v);
+                    p.lookAt(camera.position); scale=3.0; 
+                } else {
+                    p.lookAt(camera.position);
+                }
+                d.cur.lerp(tgt, 0.04); 
+                p.position.copy(d.cur); 
+                p.scale.lerp(new THREE.Vector3(scale,scale,scale), 0.1);
+            });
+
+            // 相机控制
+            if(STATE.mode==='SCATTER' && STATE.handVisible) {
+                updateCameraFromInput(STATE.handX, STATE.handY);
+            } else {
+                // 自动视角
+                camera.position.lerp(new THREE.Vector3(0, 10, CONFIG.cameraZ), 0.05);
+                camera.lookAt(0, 5, 0);
+            }
+
+            if(composer) composer.render(); else renderer.render(scene, camera);
+        }
+
+        // --- 杂项 ---
+        function updateCameraFromInput(x, y) {
+            const theta = (x-0.5) * 4 * Math.PI; 
+            const phi = (1-y) * Math.PI * 0.5 + 0.2; 
+            const r = CONFIG.cameraZ;
+            camera.position.x = r * Math.sin(theta) * Math.sin(phi);
+            camera.position.z = r * Math.cos(theta) * Math.sin(phi);
+            camera.position.y = r * Math.cos(phi) + 10;
+            camera.lookAt(0, 5, 0);
         }
 
         function handleImageUpload(e) {
@@ -284,149 +500,73 @@
         function createPhoto(img) {
             const tex = new THREE.Texture(img); tex.needsUpdate=true; tex.generateMipmaps=true; tex.encoding = THREE.sRGBEncoding;
             const aspect = img.width/img.height;
-            const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, fog: false, toneMapped: false });
-            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(6*aspect, 6), mat); // 照片稍微大一点
-            const frame = new THREE.Mesh(new THREE.BoxGeometry(6*aspect+0.2, 6.2, 0.1), new THREE.MeshStandardMaterial({color:0xffffff, roughness: 0.3}));
+            const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(5*aspect, 5), mat);
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(5*aspect+0.2, 5.2, 0.1), new THREE.MeshStandardMaterial({color:0xffffff}));
             mesh.position.z = 0.06; frame.add(mesh);
-            const ty = Math.random()*25 + 5;
-            frame.position.set(0, ty, 25);
-            frame.userData = { tree: new THREE.Vector3((Math.random()-0.5)*35, ty, (Math.random()-0.5)*30), scat: new THREE.Vector3((Math.random()-0.5)*110, (Math.random()-0.5)*100, (Math.random()-0.5)*110), cur: frame.position.clone(), focus: false };
+            frame.userData = { 
+                angleOffset: Math.random() * Math.PI * 2,
+                scat: new THREE.Vector3((Math.random()-0.5)*100, (Math.random()-0.5)*80, (Math.random()-0.5)*100), 
+                cur: new THREE.Vector3(0,0,0), focus: false 
+            };
             photoGroup.add(frame); photosData.push(frame);
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
-            const time = Date.now() * 0.001;
-            
-            let targetState = STATE.mode;
-            if (STATE.gesture === 'VICTORY') {
-                targetState = 'RUNNING'; STATE.runSpeed = Math.min(STATE.runSpeed + 0.03, 1.2); runTime += 0.25;
-            } else {
-                STATE.runSpeed = Math.max(STATE.runSpeed - 0.03, 0); 
-                if(targetState !== 'SCATTER') targetState = 'HORSE';
-                runTime += 0.04; // 呼吸/慢跑速度
-            }
-
-            for(let i=0; i<CONFIG.particleCount; i++) {
-                const d = particlesData[i]; let tgt;
-                if (targetState === 'SCATTER') tgt = d.scat;
-                else {
-                    tgt = d.horsePos.clone();
-                    // 整体奔跑起伏
-                    let bodyWave = Math.sin(runTime * 2) * 0.8 * (0.2 + STATE.runSpeed*0.8);
-                    tgt.y += bodyWave;
-
-                    if (d.part === 2) { // 腿部动画 (简化版)
-                        // 根据Z轴位置简单判断前后腿
-                        const isFront = d.horsePos.z > 0;
-                        const phase = isFront ? 0 : Math.PI;
-                        // 奔跑幅度
-                        const runAmp = STATE.runSpeed * 4; 
-                        tgt.z += Math.sin(runTime*2 + phase) * runAmp;
-                        tgt.y += Math.max(0, Math.cos(runTime*2 + phase) * runAmp * 0.5);
-                    } else if (d.part === 3) { // 鬃毛尾巴飘动
-                        tgt.x += Math.sin(time*3 + d.idx*0.1) * 0.2 * (1+STATE.runSpeed*3);
-                        tgt.y += Math.cos(time*2 + d.idx*0.1) * 0.2 * (1+STATE.runSpeed*2);
-                        // 奔跑时向后飘
-                        if(STATE.runSpeed > 0.1) tgt.z -= STATE.runSpeed * (Math.random()*2); 
-                    }
-                }
-                if(targetState === 'SCATTER') d.cur.y += Math.sin(time + i)*0.01;
-                
-                d.cur.lerp(tgt, d.speed); dummy.position.copy(d.cur);
-                dummy.rotation.x += 0.01 + STATE.runSpeed*0.05; // 奔跑时花瓣旋转加快
-                dummy.rotation.y += 0.01;
-                dummy.updateMatrix(); particlesMesh.setMatrixAt(i, dummy.matrix);
-            }
-            particlesMesh.instanceMatrix.needsUpdate=true;
-            
-            photosData.forEach(p => {
-                const d = p.userData; let tgt = (targetState === 'SCATTER') ? d.scat : d.tree; let scale = 1;
-                if(d.focus) {
-                    const v = new THREE.Vector3(0,0,-15).applyQuaternion(camera.quaternion); tgt = camera.position.clone().add(v);
-                    p.lookAt(camera.position); scale=3.0; 
-                } else {
-                    p.lookAt(camera.position);
-                    if(STATE.runSpeed > 0.1) tgt.z += Math.sin(time*8)*0.15; // 奔跑时照片震动
-                }
-                d.cur.lerp(tgt, 0.04); p.position.copy(d.cur); p.scale.lerp(new THREE.Vector3(scale,scale,scale), 0.1);
-            });
-
-            if(STATE.mode==='SCATTER' && STATE.handVisible) {
-                updateCameraFromInput(STATE.handX, STATE.handY);
-            } else {
-                // 回归视角
-                camera.position.lerp(new THREE.Vector3(0, 14, CONFIG.cameraZ), 0.03);
-                let shake = (Math.random()-0.5) * STATE.runSpeed * 0.8;
-                currentLookAt.lerp(new THREE.Vector3(0, 8 + shake, 0), 0.05);
-                camera.lookAt(currentLookAt);
-            }
-            if(composer) composer.render(); else renderer.render(scene, camera);
+        function onResize() {
+            camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if(composer) composer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function updateCameraFromInput(x, y) {
-            const theta = (x-0.5) * 4 * Math.PI; const phi = (1-y) * Math.PI * 0.5 + 0.2; 
-            const r = CONFIG.cameraZ * 1.1; 
-            const cx = r * Math.sin(theta) * Math.sin(phi); const cz = r * Math.cos(theta) * Math.sin(phi); const cy = r * Math.cos(phi) + 10;
-            camera.position.lerp(new THREE.Vector3(cx, cy, cz), 0.05); camera.lookAt(0, 10, 0);
-        }
-
+        // --- AI ---
         async function startCamera() {
-            log("Init AI (UNPKG)..."); const video = document.getElementsByClassName('input_video')[0];
+            const video = document.getElementsByClassName('input_video')[0];
             try {
-                if(typeof Hands === 'undefined') throw new Error("Hands lib missing");
                 const hands = new Hands({locateFile: (file) => `https://unpkg.com/@mediapipe/hands/${file}`});
                 hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
                 hands.onResults(onResults);
-                const camera = new Camera(video, { onFrame: async () => { await hands.send({image: video}); }, width: 480, height: 360 });
-                await camera.start(); document.getElementById('gesture-status').innerText = "AI Active!"; log("Camera Started");
-            } catch(e) { log("Cam Fail: " + e.message); document.getElementById('gesture-status').innerText = "Cam Failed. Mouse Mode."; }
+                const cam = new Camera(video, { onFrame: async () => { await hands.send({image: video}); }, width: 480, height: 360 });
+                await cam.start(); 
+                document.getElementById('gesture-status').innerText = "AI Ready!";
+            } catch(e) { console.error(e); }
         }
 
         function onResults(res) {
             const status = document.getElementById('gesture-status');
             if (res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
-                STATE.handVisible = true; const lm = res.multiHandLandmarks[0];
-                STATE.handX = STATE.handX * 0.8 + (1 - lm[0].x) * 0.2; STATE.handY = STATE.handY * 0.8 + lm[0].y * 0.2;
+                STATE.handVisible = true; 
+                const lm = res.multiHandLandmarks[0];
+                STATE.handX = 1 - lm[0].x; STATE.handY = lm[0].y;
                 
-                const wrist = lm[0]; const iTip = lm[8], mTip = lm[12], rTip = lm[16], pTip = lm[20];
-                const iBase = lm[5], mBase = lm[9], rBase = lm[13], pBase = lm[17];
-                const isIndexUp = iTip.y < iBase.y; const isMiddleUp = mTip.y < mBase.y;
-                const isRingDown = rTip.y > rBase.y; const isPinkyDown = pTip.y > pBase.y;
-                const pinch = Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05; 
+                // 简单的手势判断
+                // Pinch
+                const pinch = Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05;
+                // V-Sign (Index & Middle up, others down)
+                const isIndexUp = lm[8].y < lm[5].y;
+                const isMiddleUp = lm[12].y < lm[9].y;
+                const isRingDown = lm[16].y > lm[13].y;
                 
-                let openCount = 0;
-                [8,12,16,20].forEach((t,i) => { if(lm[t].y < lm[[5,9,13,17][i]].y) openCount++; });
-
-                if (pinch) {
-                    STATE.gesture = 'PINCH'; status.innerText = "👌 捏合: 抓取 (Grab)"; raycastGrab();
-                } else if (isIndexUp && isMiddleUp && isRingDown && isPinkyDown && !pinch) {
-                    STATE.gesture = 'VICTORY'; STATE.mode = 'HORSE'; status.innerText = "✌️ 剪刀手: 奔跑 (RUN!)";
-                } else if (openCount >= 4) {
-                    STATE.gesture = 'OPEN'; STATE.mode = 'SCATTER'; resetPhoto(); status.innerText = "🖐 张开: 漫游 (Scatter)";
+                if(pinch) {
+                    STATE.gesture = 'PINCH'; status.innerText = "👌 抓取 (Grab)";
+                    // 简单的抓取逻辑
+                    if(photosData.length > 0) {
+                         // 找到最近的
+                         photosData.forEach(p => p.userData.focus = false);
+                         photosData[photosData.length-1].userData.focus = true;
+                         STATE.mode = 'ZOOM';
+                    }
+                } else if (isIndexUp && isMiddleUp && isRingDown) {
+                    STATE.gesture = 'VICTORY'; STATE.mode = 'HORSE'; status.innerText = "✌️ 奔跑 (Gallop)";
+                } else if (!isIndexUp && !isMiddleUp) { // Fist-ish
+                    STATE.gesture = 'FIST'; STATE.mode = 'HORSE'; status.innerText = "✊ 停止 (Stop)";
                 } else {
-                    STATE.gesture = 'FIST'; STATE.mode = 'HORSE'; status.innerText = "✊ 握拳: 停止 (Stop)";
+                    STATE.gesture = 'OPEN'; STATE.mode = 'SCATTER'; status.innerText = "🖐 漫游 (Scatter)";
                 }
-            } else { STATE.handVisible = false; status.innerText = "No Hand Detected"; }
+            } else {
+                STATE.handVisible = false;
+                status.innerText = "No Hand";
+            }
         }
-
-        function raycastGrab() {
-            if(STATE.mode === 'RUNNING' || photosData.length === 0) return; 
-            raycaster.setFromCamera(centerVector, camera);
-            const intersects = raycaster.intersectObjects(photoGroup.children, true);
-            if (intersects.length > 0) { const targetFrame = intersects[0].object.parent; if(targetFrame) { activatePhoto(targetFrame); return; } }
-            let closest = null; let minAngle = Infinity;
-            const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
-            photosData.forEach(p => {
-                const toPhoto = p.position.clone().sub(camera.position).normalize();
-                const angle = camDir.angleTo(toPhoto); 
-                if(angle < 0.4 && angle < minAngle) { minAngle = angle; closest = p; }
-            });
-            if(closest) activatePhoto(closest);
-        }
-
-        function activatePhoto(p) { resetPhoto(); STATE.mode='ZOOM'; p.userData.focus=true; document.getElementById('gesture-status').innerText = "Got it!"; }
-        function resetPhoto() { photosData.forEach(p=>p.userData.focus=false); }
     </script>
 </body>
 </html>
