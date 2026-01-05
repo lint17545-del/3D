@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CNY Red Horse (Stable V6.0)</title>
+    <title>CNY Red Horse (Majestic V7.0)</title>
     <style>
-        /* 背景：深邃的红黑渐变 */
-        body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #2a0000 0%, #000000 100%); font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #330000 0%, #000000 100%); font-family: sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
         #ui-layer {
@@ -16,13 +15,12 @@
         }
         h1 { margin: 0; font-weight: bold; letter-spacing: 3px; font-size: 28px; color: #ff3333; text-shadow: 0 0 15px rgba(255, 0, 0, 0.8); }
         
-        /* 版本标签 */
-        .version-tag { font-size: 10px; color: #ffd700; margin-bottom: 10px; border: 1px solid #ffd700; display: inline-block; padding: 2px 5px; background: rgba(0,0,0,0.7);}
+        .version-tag { font-size: 10px; color: #ffcc00; margin-bottom: 10px; border: 1px solid #ffcc00; display: inline-block; padding: 2px 5px; background: rgba(0,0,0,0.7);}
         
         #loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #1a0000; z-index: 100; display: flex;
-            justify-content: center; align-items: center; color: #d4af37;
+            justify-content: center; align-items: center; color: #ff3333;
             flex-direction: column; transition: opacity 0.5s;
         }
         #start-btn {
@@ -42,20 +40,19 @@
         input[type="file"] { display: none; }
         .input_video { display: none; }
         
-        /* 错误日志 */
         #console-log { position: fixed; bottom: 0; left: 0; width: 100%; height: 100px; background: rgba(0,0,0,0.8); color: red; font-size: 10px; pointer-events: none; z-index: 999; overflow: auto; display: none; }
     </style>
 </head>
 <body>
     <div id="console-log"></div>
     <div id="loader">
-        <div id="loading-text">正在加载 (Loading)...</div>
+        <div id="loading-text">正在塑造神骏 (Sculpting Horse)...</div>
         <button id="start-btn">开启新年 (START)</button>
     </div>
 
     <div id="ui-layer">
         <h1>龙马精神 · 新年快乐</h1>
-        <div class="version-tag">Ver 6.0 (Stable UNPKG)</div>
+        <div class="version-tag">Ver 7.0 (Majestic Anatomy)</div>
         <div class="status" id="gesture-status">等待启动...</div>
         <div style="margin-top:5px; font-size:12px; color:#ffaaaa; line-height: 1.5;">
             ✌️ 剪刀手: 奔跑 (Run) | 🖐 张开: 漫游 <br>
@@ -77,7 +74,6 @@
     <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
     <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
     <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-    
     <script src="https://unpkg.com/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -96,9 +92,10 @@
         };
 
         const CONFIG = { 
-            particleCount: 2000, 
-            cameraZ: 70, 
-            colors: { red: 0xdd0000, gold: 0xffd700, darkRed: 0x550000 } 
+            // 【修改】增加粒子数以获得更密实的模型
+            particleCount: 3800, 
+            cameraZ: 75, 
+            colors: { red: 0xdd0000, gold: 0xffd700, darkRed: 0x440000 } 
         };
         const STATE = { mode: 'HORSE', handVisible: false, handX: 0.5, handY: 0.5, gesture: 'NONE', runSpeed: 0 };
         
@@ -106,248 +103,11 @@
         let raycaster = new THREE.Raycaster();
         const centerVector = new THREE.Vector2(0, 0); 
         const particlesData = [], photosData = [];
-        let currentLookAt = new THREE.Vector3(0, 5, 0);
+        let currentLookAt = new THREE.Vector3(0, 8, 0);
         let runTime = 0;
 
         function initThree() {
             try {
                 const container = document.getElementById('canvas-container');
                 scene = new THREE.Scene();
-                scene.fog = new THREE.FogExp2(0x1a0000, 0.001); // 红色淡雾
-
-                camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000); 
-                camera.position.set(0, 10, CONFIG.cameraZ);
-                camera.lookAt(0, 5, 0);
-
-                renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                renderer.toneMapping = THREE.ACESFilmicToneMapping;
-                renderer.toneMappingExposure = 1.3; 
-                container.appendChild(renderer.domElement);
-
-                scene.add(new THREE.AmbientLight(0xffffff, 0.2));
-                const l1 = new THREE.PointLight(CONFIG.colors.gold, 3.0, 150); l1.position.set(20, 30, 30); scene.add(l1);
-                const l2 = new THREE.PointLight(CONFIG.colors.red, 2.0, 120); l2.position.set(-20, 10, 15); scene.add(l2);
-
-                try {
-                    const renderScene = new THREE.RenderPass(scene, camera);
-                    const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.5, 0.85);
-                    bloomPass.threshold = 0.6; bloomPass.strength = 1.2; bloomPass.radius = 0.5;
-                    composer = new THREE.EffectComposer(renderer);
-                    composer.addPass(renderScene);
-                    composer.addPass(bloomPass);
-                } catch(e) { log("Bloom skipped."); composer = null; }
-
-                createHorseParticles();
-                photoGroup = new THREE.Group();
-                scene.add(photoGroup);
-
-                document.addEventListener('mousemove', e => {
-                    if (!STATE.handVisible && STATE.mode === 'SCATTER') updateCameraFromInput(e.clientX/window.innerWidth, e.clientY/window.innerHeight);
-                });
-                document.addEventListener('click', e => {
-                    if(['upload-btn', 'file-input', 'start-btn'].includes(e.target.id)) return;
-                    if(!STATE.handVisible && photosData.length > 0) { STATE.mode = STATE.mode === 'HORSE' ? 'SCATTER' : 'HORSE'; }
-                });
-
-                window.addEventListener('resize', () => {
-                    camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
-                    renderer.setSize(window.innerWidth, window.innerHeight);
-                    if(composer) composer.setSize(window.innerWidth, window.innerHeight);
-                });
-                document.getElementById('file-input').addEventListener('change', handleImageUpload);
-                animate();
-            } catch(err) { log("3D Init Error: " + err.message); }
-        }
-
-        function createHorseParticles() {
-            // 【花瓣形状】TetrahedronGeometry (四面体) 压扁
-            const geo = new THREE.TetrahedronGeometry(0.5, 0); 
-            geo.scale(1, 1.5, 0.5);
-            const mat = new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.3, metalness: 0.7 });
-            particlesMesh = new THREE.InstancedMesh(geo, mat, CONFIG.particleCount);
-            const col = new THREE.Color();
-            
-            for(let i=0; i<CONFIG.particleCount; i++) {
-                let part = 0, x=0, y=0, z=0;
-                const r = Math.random();
-                // 简单的马形态分布算法
-                if (r < 0.45) { // 躯干
-                    part = 0; x = (Math.random()-0.5) * 12; y = (Math.random()-0.5) * 8 + 10; z = (Math.random()-0.5) * 8;
-                } else if (r < 0.65) { // 脖子头
-                    part = 1; const np = Math.random();
-                    x = 6 + np * 4 + (Math.random()-0.5)*3; y = 12 + np * 8 + (Math.random()-0.5)*3; z = (Math.random()-0.5) * 3;
-                    if(np > 0.8) { x += 2; z *= 1.5; }
-                } else if (r < 0.90) { // 腿
-                    part = 2; const li = Math.floor(Math.random() * 4); 
-                    const lx = (li < 2) ? 4 : -4; const lz = (li % 2 === 0) ? 2.5 : -2.5; 
-                    x = lx + (Math.random()-0.5) * 2.5; y = Math.random() * 10; z = lz + (Math.random()-0.5) * 2;
-                    part = 2 + li * 0.1; 
-                } else { // 尾
-                    part = 3; x = -7 - Math.random() * 4; y = 10 - Math.random() * 6; z = (Math.random()-0.5) * 2;
-                }
-
-                if (Math.random() > 0.8) col.setHex(CONFIG.colors.gold); else col.setHex(CONFIG.colors.red);
-                particlesMesh.setColorAt(i, col);
-                dummy.position.set(x, y, z);
-                dummy.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
-                dummy.scale.setScalar(0.5 + Math.random());
-                dummy.updateMatrix();
-                particlesMesh.setMatrixAt(i, dummy.matrix);
-                
-                // 散开范围: 80
-                particlesData.push({ idx: i, part: part, cur: new THREE.Vector3(x, y, z), horsePos: new THREE.Vector3(x, y, z), 
-                    scat: new THREE.Vector3((Math.random()-0.5)*80, (Math.random()-0.5)*80, (Math.random()-0.5)*80), 
-                    speed: 0.02 + Math.random() * 0.03 });
-            }
-            scene.add(particlesMesh);
-        }
-
-        function handleImageUpload(e) {
-            const files = e.target.files; if(!files.length) return;
-            Array.from(files).forEach(f => {
-                const r = new FileReader();
-                r.onload = ev => { const img = new Image(); img.src = ev.target.result; img.onload = () => createPhoto(img); };
-                r.readAsDataURL(f);
-            });
-        }
-
-        function createPhoto(img) {
-            const tex = new THREE.Texture(img); tex.needsUpdate=true; tex.generateMipmaps=true; tex.encoding = THREE.sRGBEncoding;
-            const aspect = img.width/img.height;
-            // 纯净照片模式 (无雾，无色调映射)
-            const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, fog: false, toneMapped: false });
-            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(5*aspect, 5), mat);
-            // 白色边框
-            const frame = new THREE.Mesh(new THREE.BoxGeometry(5*aspect+0.2, 5.2, 0.1), new THREE.MeshStandardMaterial({color:0xffffff}));
-            mesh.position.z = 0.06; frame.add(mesh);
-            const ty = Math.random()*20 + 5;
-            frame.position.set(0, ty, 20);
-            frame.userData = { tree: new THREE.Vector3((Math.random()-0.5)*25, ty, (Math.random()-0.5)*20), scat: new THREE.Vector3((Math.random()-0.5)*90, (Math.random()-0.5)*80, (Math.random()-0.5)*90), cur: frame.position.clone(), focus: false };
-            photoGroup.add(frame); photosData.push(frame);
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const time = Date.now() * 0.001;
-            
-            let targetState = STATE.mode;
-            if (STATE.gesture === 'VICTORY') {
-                targetState = 'RUNNING'; STATE.runSpeed = Math.min(STATE.runSpeed + 0.02, 1.0); runTime += 0.2;
-            } else {
-                STATE.runSpeed = Math.max(STATE.runSpeed - 0.02, 0); 
-                if(targetState !== 'SCATTER') targetState = 'HORSE';
-                runTime += 0.05;
-            }
-
-            for(let i=0; i<CONFIG.particleCount; i++) {
-                const d = particlesData[i]; let tgt;
-                if (targetState === 'SCATTER') tgt = d.scat;
-                else {
-                    tgt = d.horsePos.clone();
-                    if (d.part >= 2 && d.part < 3) { // 腿部奔跑
-                        const legId = Math.floor((d.part - 2) * 10); 
-                        const phase = (legId % 2 === 0) ? 0 : Math.PI; 
-                        tgt.x += Math.sin(runTime + phase) * 3 * STATE.runSpeed;
-                        tgt.y += Math.max(0, Math.cos(runTime*2 + phase) * 1.5 * STATE.runSpeed);
-                    }
-                    tgt.y += Math.sin(runTime * 2) * 0.5 * STATE.runSpeed; 
-                }
-                if(targetState === 'SCATTER') d.cur.y += Math.sin(time + i)*0.01;
-                d.cur.lerp(tgt, d.speed); dummy.position.copy(d.cur);
-                dummy.rotation.x += 0.01; dummy.rotation.y += 0.01;
-                dummy.updateMatrix(); particlesMesh.setMatrixAt(i, dummy.matrix);
-            }
-            particlesMesh.instanceMatrix.needsUpdate=true;
-            
-            photosData.forEach(p => {
-                const d = p.userData; let tgt = (targetState === 'SCATTER') ? d.scat : d.tree; let scale = 1;
-                if(d.focus) {
-                    const v = new THREE.Vector3(0,0,-15).applyQuaternion(camera.quaternion); tgt = camera.position.clone().add(v);
-                    p.lookAt(camera.position); scale=3.0; 
-                } else {
-                    p.lookAt(camera.position);
-                    if(STATE.runSpeed > 0.1) tgt.z += Math.sin(time*10)*0.1;
-                }
-                d.cur.lerp(tgt, 0.04); p.position.copy(d.cur); p.scale.lerp(new THREE.Vector3(scale,scale,scale), 0.1);
-            });
-
-            if(STATE.mode==='SCATTER' && STATE.handVisible) {
-                updateCameraFromInput(STATE.handX, STATE.handY);
-            } else {
-                camera.position.lerp(new THREE.Vector3(0, 10, CONFIG.cameraZ), 0.03);
-                let shakeY = (Math.random()-0.5) * STATE.runSpeed * 0.5;
-                currentLookAt.lerp(new THREE.Vector3(0, 5 + shakeY, 0), 0.05);
-                camera.lookAt(currentLookAt);
-            }
-            if(composer) composer.render(); else renderer.render(scene, camera);
-        }
-
-        function updateCameraFromInput(x, y) {
-            const theta = (x-0.5) * 4 * Math.PI; const phi = (1-y) * Math.PI * 0.5 + 0.2; 
-            const r = CONFIG.cameraZ * 1.1; 
-            const cx = r * Math.sin(theta) * Math.sin(phi); const cz = r * Math.cos(theta) * Math.sin(phi); const cy = r * Math.cos(phi) + 10;
-            camera.position.lerp(new THREE.Vector3(cx, cy, cz), 0.05); camera.lookAt(0, 10, 0);
-        }
-
-        async function startCamera() {
-            log("Init AI (UNPKG)..."); const video = document.getElementsByClassName('input_video')[0];
-            try {
-                if(typeof Hands === 'undefined') throw new Error("Hands lib missing");
-                // 【回归 V3.4】使用 unpkg 源，这是之前成功过的配置
-                const hands = new Hands({locateFile: (file) => `https://unpkg.com/@mediapipe/hands/${file}`});
-                hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
-                hands.onResults(onResults);
-                const camera = new Camera(video, { onFrame: async () => { await hands.send({image: video}); }, width: 480, height: 360 });
-                await camera.start(); document.getElementById('gesture-status').innerText = "AI Active!"; log("Camera Started");
-            } catch(e) { log("Cam Fail: " + e.message); document.getElementById('gesture-status').innerText = "Cam Failed. Mouse Mode."; }
-        }
-
-        function onResults(res) {
-            const status = document.getElementById('gesture-status');
-            if (res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
-                STATE.handVisible = true; const lm = res.multiHandLandmarks[0];
-                STATE.handX = STATE.handX * 0.8 + (1 - lm[0].x) * 0.2; STATE.handY = STATE.handY * 0.8 + lm[0].y * 0.2;
-                
-                const wrist = lm[0]; const iTip = lm[8], mTip = lm[12], rTip = lm[16], pTip = lm[20];
-                const iBase = lm[5], mBase = lm[9], rBase = lm[13], pBase = lm[17];
-                const isIndexUp = iTip.y < iBase.y; const isMiddleUp = mTip.y < mBase.y;
-                const isRingDown = rTip.y > rBase.y; const isPinkyDown = pTip.y > pBase.y;
-                const pinch = Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05; 
-                
-                let openCount = 0;
-                [8,12,16,20].forEach((t,i) => { if(lm[t].y < lm[[5,9,13,17][i]].y) openCount++; });
-
-                if (pinch) {
-                    STATE.gesture = 'PINCH'; status.innerText = "👌 捏合: 抓取 (Grab)"; raycastGrab();
-                } else if (isIndexUp && isMiddleUp && isRingDown && isPinkyDown && !pinch) {
-                    STATE.gesture = 'VICTORY'; STATE.mode = 'HORSE'; status.innerText = "✌️ 剪刀手: 奔跑 (RUN!)";
-                } else if (openCount >= 4) {
-                    STATE.gesture = 'OPEN'; STATE.mode = 'SCATTER'; resetPhoto(); status.innerText = "🖐 张开: 漫游 (Scatter)";
-                } else {
-                    STATE.gesture = 'FIST'; STATE.mode = 'HORSE'; status.innerText = "✊ 握拳: 停止 (Stop)";
-                }
-            } else { STATE.handVisible = false; status.innerText = "No Hand Detected"; }
-        }
-
-        function raycastGrab() {
-            if(STATE.mode === 'RUNNING' || photosData.length === 0) return; 
-            raycaster.setFromCamera(centerVector, camera);
-            const intersects = raycaster.intersectObjects(photoGroup.children, true);
-            if (intersects.length > 0) { const targetFrame = intersects[0].object.parent; if(targetFrame) { activatePhoto(targetFrame); return; } }
-            let closest = null; let minAngle = Infinity;
-            const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
-            photosData.forEach(p => {
-                const toPhoto = p.position.clone().sub(camera.position).normalize();
-                const angle = camDir.angleTo(toPhoto); 
-                if(angle < 0.4 && angle < minAngle) { minAngle = angle; closest = p; }
-            });
-            if(closest) activatePhoto(closest);
-        }
-
-        function activatePhoto(p) { resetPhoto(); STATE.mode='ZOOM'; p.userData.focus=true; document.getElementById('gesture-status').innerText = "Got it!"; }
-        function resetPhoto() { photosData.forEach(p=>p.userData.focus=false); }
-    </script>
-</body>
-</html>
+                scene.fog = new
