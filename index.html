@@ -3,76 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Future Energy Landscape (V14.0 Stable)</title>
+    <title>Energy Matrix (V15.0 Cyber-Industrial)</title>
     <style>
-        /* 背景：科技感蓝黑渐变 */
-        body { margin: 0; overflow: hidden; background: radial-gradient(circle at center bottom, #001a33 0%, #000000 80%); font-family: "Microsoft YaHei", sans-serif; }
+        /* 赛博朋克风格深色背景 */
+        body { margin: 0; overflow: hidden; background: radial-gradient(circle at center bottom, #000b1a 0%, #000000 100%); font-family: "Microsoft YaHei", sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
-        /* UI 层 */
         #ui-layer {
             position: absolute; top: 20px; left: 20px; z-index: 10;
-            color: #00f0ff; pointer-events: none; user-select: none;
-            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+            color: #00f3ff; pointer-events: none; user-select: none;
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.6);
         }
-        h1 { margin: 0; font-weight: bold; letter-spacing: 3px; font-size: 28px; color: #ffffff; }
-        .subtitle { font-size: 14px; color: #00aaff; letter-spacing: 1px; margin-top: 5px; }
-        .version-tag { font-size: 10px; color: #00ff00; margin-top: 10px; border: 1px solid #00ff00; display: inline-block; padding: 2px 6px; background: rgba(0,0,0,0.6);}
+        h1 { margin: 0; font-weight: 800; letter-spacing: 6px; font-size: 36px; color: #ffffff; text-transform: uppercase; }
+        .subtitle { font-size: 12px; color: #0088ff; letter-spacing: 3px; margin-top: 5px; border-left: 3px solid #00f3ff; padding-left: 10px;}
         
-        /* 加载页 */
+        .version-tag { font-size: 10px; color: #00ffaa; margin-top: 15px; border: 1px solid #00ffaa; display: inline-block; padding: 4px 8px; background: rgba(0,0,0,0.8);}
+        
         #loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #020205; z-index: 100; display: flex;
-            justify-content: center; align-items: center; color: #00f0ff;
+            background: #00050a; z-index: 100; display: flex;
+            justify-content: center; align-items: center; color: #00f3ff;
             flex-direction: column; transition: opacity 0.8s;
         }
         
-        #start-btn {
-            margin-top: 30px; padding: 15px 50px; 
-            background: rgba(0, 240, 255, 0.2); color: #00f0ff;
-            border: 2px solid #00f0ff; cursor: pointer;
-            font-size: 18px; letter-spacing: 4px; font-weight: bold;
-            box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
-            border-radius: 50px; transition: 0.3s;
-            display: none; 
+        #force-start-btn {
+            margin-top: 40px; padding: 15px 60px; 
+            background: transparent; color: #00f3ff;
+            border: 2px solid #00f3ff; cursor: pointer;
+            font-size: 16px; letter-spacing: 4px; font-weight: bold;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+            text-transform: uppercase;
+            transition: 0.3s;
+            display: none; /* 延时显示 */
         }
-        #start-btn:hover { background: #00f0ff; color: #000; box-shadow: 0 0 50px rgba(0, 240, 255, 0.8); }
+        #force-start-btn:hover { background: #00f3ff; color: #000; box-shadow: 0 0 50px rgba(0, 243, 255, 1.0); }
 
-        #loading-text { margin-top: 10px; color: #6688aa; font-size: 12px; }
-        
-        /* 上传按钮 */
+        #loading-text { margin-top: 15px; color: #446688; font-size: 12px; font-family: monospace; }
+
+        /* 上传按钮美化 */
         #upload-btn {
-            pointer-events: auto; background: rgba(0, 50, 100, 0.6);
-            border: 1px solid #00aaff; color: #00aaff; padding: 6px 12px;
-            cursor: pointer; margin-top: 15px; display: inline-block;
-            font-size: 12px; border-radius: 2px;
+            pointer-events: auto; background: rgba(0, 20, 40, 0.8);
+            border: 1px solid #00f3ff; color: #00f3ff; padding: 8px 20px;
+            cursor: pointer; margin-top: 20px; display: inline-block;
+            font-size: 12px; letter-spacing: 1px;
+            transition: 0.3s;
         }
+        #upload-btn:hover { background: #00f3ff; color: #000; }
         input[type="file"] { display: none; }
         .input_video { display: none; }
+        
+        /* 交互提示图标 */
+        .icon-guide { margin-top: 15px; font-size: 12px; color: #88aacc; line-height: 2.0; }
+        .highlight { color: #ffffff; font-weight: bold; }
     </style>
 </head>
 <body>
     <div id="loader">
-        <div style="font-size: 24px; letter-spacing: 3px; color: #ffffff;">未来能源景象</div>
-        <div style="font-size: 16px; letter-spacing: 2px; color: #00f0ff; margin-top:5px;">Future Energy Landscape</div>
-        <div id="loading-text">正在构建工业粒子 (Building Assets)...</div>
-        <button id="start-btn">启动引擎 (ENGAGE)</button>
+        <div style="font-size: 32px; letter-spacing: 8px; font-weight: bold; text-shadow: 0 0 20px #00f3ff;">能源矩阵</div>
+        <div style="font-size: 14px; letter-spacing: 4px; color: #ffffff; opacity: 0.7; margin-top: 5px;">ENERGY MATRIX V15.0</div>
+        <div id="loading-text">INITIALIZING QUANTUM PARTICLES...</div>
+        <button id="force-start-btn">INITIALIZE SYSTEM</button>
     </div>
 
     <div id="ui-layer">
-        <h1>火电与新能源</h1>
-        <div class="subtitle">Interactive Particle Scene V14.0</div>
-        <div class="version-tag">Stable Network</div>
-        <div class="status" id="gesture-status">等待指令...</div>
-        <div style="margin-top:15px; font-size:12px; color:#88aabb; line-height: 1.8;">
-            交互指南：<br>
-            ✌️ 剪刀手：全面运行 (Operating)<br>
-            ✊ 握拳：静态展示 (Static)<br>
-            🖐 张开手：散开漫游 (Scatter)<br>
-            👌 捏合：抓取照片 (Grab Photo)
+        <h1>智慧能源</h1>
+        <div class="subtitle">THERMAL & NEW ENERGY VISUALIZATION</div>
+        <div class="version-tag">Hyper-Structure Engine</div>
+        <div class="status" id="gesture-status">SYSTEM READY</div>
+        <div class="icon-guide">
+            <span class="highlight">✌️ 剪刀手</span> : 全负荷运行 (Full Power)<br>
+            <span class="highlight">✊ 握拳</span> : 待机状态 (Standby)<br>
+            <span class="highlight">🖐 张开</span> : 结构解构 (Deconstruct)<br>
+            <span class="highlight">🖱️ 鼠标</span> : 视角环绕 (Orbit)
         </div>
         <label id="upload-btn">
-            上传企业照片
+            [+] 加载全息影像 (Upload Photo)
             <input type="file" id="file-input" multiple accept="image/*">
         </label>
     </div>
@@ -87,7 +92,6 @@
     <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
     <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
     <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-    
     <script src="https://unpkg.com/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -96,118 +100,147 @@
     <script type="x-shader/x-vertex" id="vertexshader">
         attribute float size;
         attribute vec3 customColor;
-        // partType: 0=静态结构, 1=风机叶片, 2=光伏板, 3=蒸汽
+        // partType: 0=塔身(静), 1=风机叶片(旋), 2=光伏(闪), 3=蒸汽(升), 4=全息地面
         attribute float partType; 
-        // initialPos: 记录初始位置用于旋转计算
-        attribute vec3 initialPos;
+        attribute vec3 initialPos; // 原始位置
+        attribute float randomSeed; // 随机种子
 
         uniform float time;
-        uniform float operateFactor; // 运行强度 0~1
-        uniform float scatter;       // 散开强度 0~1
+        uniform float runSpeed; // 0.1 (待机) -> 2.0 (全速)
+        uniform float scatter;  // 0.0 -> 1.0
+        uniform vec3 mousePos;
         
         varying vec3 vColor;
         varying float vAlpha;
 
-        // 旋转函数
-        vec3 rotateZ(vec3 v, float angle) {
-            float c = cos(angle); float s = sin(angle);
-            return vec3(v.x*c - v.y*s, v.x*s + v.y*c, v.z);
+        // 旋转矩阵
+        mat2 rotate2d(float _angle){
+            return mat2(cos(_angle),-sin(_angle),
+                        sin(_angle),cos(_angle));
         }
 
         void main() {
             vColor = customColor;
-            vAlpha = 1.0;
-            vec3 pos = position;
+            vAlpha = 1.0; // 基础透明度
+            vec3 pos = initialPos;
+            float t = time * runSpeed;
 
-            // --- 工业动画 ---
-            float speed = 1.0 + operateFactor * 3.0; // 运行速度倍率
-
-            if (partType > 0.5 && partType < 1.5) { 
-                // Type 1: 风机叶片旋转 (绕Z轴)
-                // 叶片中心大约在 y=25, x=-15
-                vec3 center = vec3(-15.0, 25.0, -5.0);
-                vec3 relativePos = pos - center;
-                // 根据运行因子加速旋转
-                float angle = -time * speed * 2.0; 
-                pos = center + rotateZ(relativePos, angle);
-
-            } else if (partType > 1.5 && partType < 2.5) {
-                // Type 2: 光伏板 (能量微光闪烁)
-                vAlpha = 0.8 + sin(time * 3.0 + pos.x) * 0.2 * operateFactor;
-
-            } else if (partType > 2.5) {
-                // Type 3: 凉水塔蒸汽 (上升并消散)
-                float steamCycle = mod(time * speed + initialPos.y * 0.1, 6.0); // 6秒一个周期
-                pos.y += steamCycle * 5.0; // 上升
-                pos.x += sin(time + pos.y*0.5) * 2.0 * (steamCycle/6.0); // 随风飘动
-                pos.z += cos(time + pos.y*0.5) * 2.0 * (steamCycle/6.0);
-                
-                // 越高越透明
-                vAlpha = 1.0 - (steamCycle / 6.0);
-                if (vAlpha < 0.0) vAlpha = 0.0;
-                // 运行状态下蒸汽更多更明显
-                vAlpha *= (0.3 + operateFactor * 0.7);
+            // --- 1. 风机叶片 (Type 1) ---
+            if (partType > 0.5 && partType < 1.5) {
+                // 风机中心点 (手动硬编码调整)
+                vec3 center = vec3(-25.0, 35.0, -10.0);
+                vec3 local = pos - center;
+                // 旋转
+                float angle = -t * 3.0; // 逆时针旋转
+                local.xy = rotate2d(angle) * local.xy;
+                pos = center + local;
+                // 增加一点动态光效
+                vColor += vec3(0.2) * sin(t * 5.0 + pos.x); 
+            }
+            
+            // --- 2. 光伏阵列 (Type 2) ---
+            else if (partType > 1.5 && partType < 2.5) {
+                // 数据流光效：光带扫过
+                float flow = mod(pos.x + pos.z + t * 5.0, 20.0);
+                if (flow < 2.0) {
+                    vColor = mix(vColor, vec3(1.0, 1.0, 1.0), 0.8); // 变成亮白
+                    pos.y += 0.5; // 稍微浮起
+                }
             }
 
-            // --- 散开模式 ---
-            if (scatter > 0.0) {
-                // 简单的径向散开
-                vec3 dir = normalize(initialPos); 
-                pos = mix(pos, initialPos + dir * 100.0, scatter);
-                // 散开时增加随机扰动
-                pos.x += sin(time + initialPos.y)*10.0*scatter;
-                vAlpha *= (1.0 - scatter * 0.5);
+            // --- 3. 冷却塔蒸汽 (Type 3) ---
+            else if (partType > 2.5 && partType < 3.5) {
+                // 循环上升
+                float cycle = mod(time * (1.0 + runSpeed) + randomSeed * 10.0, 1.0); // 0~1
+                pos.y = initialPos.y + cycle * 15.0; // 上升 15 单位
+                
+                // 扩散
+                float spread = cycle * 5.0;
+                pos.x += sin(time + randomSeed * 10.0) * spread * 0.5;
+                pos.z += cos(time + randomSeed * 10.0) * spread * 0.5;
+
+                // 渐隐
+                vAlpha = (1.0 - cycle) * (runSpeed * 0.8); // 速度越快，蒸汽越明显
+            }
+            
+            // --- 4. 全息地面 (Type 4) ---
+            else if (partType > 3.5) {
+                // 呼吸效果
+                vAlpha = 0.3 + 0.2 * sin(time + pos.x * 0.1);
+            }
+
+            // --- 5. 散开效果 (Deconstruct) ---
+            if (scatter > 0.01) {
+                // 向上悬浮散开
+                pos.y += scatter * 20.0;
+                // 随机噪点散开
+                pos.x += sin(randomSeed * 100.0) * scatter * 50.0;
+                pos.z += cos(randomSeed * 100.0) * scatter * 50.0;
+                vAlpha *= (1.0 - scatter);
             }
 
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+            
+            // 粒子大小随距离变化
             gl_PointSize = size * (300.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
         }
     </script>
+
     <script type="x-shader/x-fragment" id="fragmentshader">
-        varying vec3 vColor; varying float vAlpha;
+        varying vec3 vColor;
+        varying float vAlpha;
         void main() {
+            // 绘制圆形粒子
             vec2 cxy = 2.0 * gl_PointCoord - 1.0;
             float r = dot(cxy, cxy);
             if (r > 1.0) discard;
-            // 柔和边缘
+
+            // 核心亮，边缘暗 (光晕)
             float glow = 1.0 - r;
-            gl_FragColor = vec4(vColor, vAlpha * glow * 1.2);
+            glow = pow(glow, 2.0);
+
+            gl_FragColor = vec4(vColor, vAlpha * glow);
         }
     </script>
 
     <script>
-        // --- 配置与状态 ---
+        // --- 核心配置 ---
         const CONFIG = {
-            cameraZ: 70,
+            particleCount: 25000, // 增加到 2.5万个粒子，保证密度
+            cameraZ: 90,
             colors: {
-                techBlue: new THREE.Color(0x0088ff), // 科技蓝
-                brightCyan: new THREE.Color(0x00ffff), // 亮青
-                energyGold: new THREE.Color(0xffaa00), // 能量金
-                white: new THREE.Color(0xffffff),
-                steamGrey: new THREE.Color(0xaaaaaa)
+                cyan: new THREE.Color(0x00f3ff),    // 赛博蓝 (火电冷却塔)
+                orange: new THREE.Color(0xffaa00),  // 能量橙 (光伏)
+                white: new THREE.Color(0xffffff),   // 白 (风机)
+                grey: new THREE.Color(0x556677),    // 灰 (蒸汽/地面)
+                darkBase: new THREE.Color(0x001133) // 基础暗色
             }
         };
-        const STATE = { mode: 'ENERGY', handVisible: false, handX:0.5, handY:0.5, gesture:'NONE' };
 
         let scene, camera, renderer, composer;
         let particles, uniforms;
-        let photoGroup, raycaster = new THREE.Raycaster();
-        let photosData = [];
+        let photoGroup, photosData = [];
+        const STATE = { mode: 'ENERGY' }; // ENERGY(待机), OPERATING(全速), SCATTER(散开)
 
-        // --- 启动逻辑 ---
+        // --- 启动系统 ---
         window.onload = function() {
-            const btn = document.getElementById('start-btn');
+            const btn = document.getElementById('force-start-btn');
             const txt = document.getElementById('loading-text');
-            if (typeof THREE === 'undefined') {
-                txt.innerText = "❌ 核心库加载失败 (请刷新)"; return;
-            }
-            txt.style.display = 'none'; btn.style.display = 'block';
+
+            // 3秒后强制显示按钮
+            setTimeout(() => { btn.style.display = 'block'; }, 3000);
+
+            // 点击启动
             btn.onclick = () => {
+                if(typeof THREE === 'undefined') {
+                    alert("核心组件加载失败，请刷新页面"); return;
+                }
                 document.getElementById('loader').style.opacity = 0;
                 setTimeout(() => document.getElementById('loader').style.display = 'none', 800);
+                
                 init();
-                try { startAI(); } catch(e) { console.log("AI skipped"); }
+                try { startAI(); } catch(e) { console.warn("AI skipped"); }
             };
         };
 
@@ -215,134 +248,217 @@
         function init() {
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
-            // 科技感雾气
-            scene.fog = new THREE.FogExp2(0x000510, 0.0015);
+            // 深空雾气
+            scene.fog = new THREE.FogExp2(0x00050a, 0.002);
 
-            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 20, CONFIG.cameraZ);
-            camera.lookAt(0, 5, 0);
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 30, CONFIG.cameraZ); // 俯视视角
+            camera.lookAt(0, 10, 0);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             container.appendChild(renderer.domElement);
 
-            // 灯光
-            scene.add(new THREE.AmbientLight(0x112233, 0.5));
-            const blueLight = new THREE.PointLight(0x0088ff, 2, 150); blueLight.position.set(20, 30, 20); scene.add(blueLight);
-            const goldLight = new THREE.PointLight(0xffaa00, 1.5, 150); goldLight.position.set(-20, 10, 10); scene.add(goldLight);
-
-            // 辉光后期
+            // 辉光后期 (Bloom) - 让粒子发光
             try {
                 const renderScene = new THREE.RenderPass(scene, camera);
                 const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-                bloomPass.threshold = 0.3; bloomPass.strength = 1.2; bloomPass.radius = 0.8;
+                bloomPass.threshold = 0.2; // 阈值低一点，让暗处也发光
+                bloomPass.strength = 1.2;  // 强度
+                bloomPass.radius = 0.5;
                 composer = new THREE.EffectComposer(renderer);
                 composer.addPass(renderScene); composer.addPass(bloomPass);
             } catch(e) { composer = null; }
 
-            // 创建粒子场景
-            createEnergyParticles();
+            // === 核心：构建工业矩阵 ===
+            buildIndustrialCity();
 
             // 照片组
             photoGroup = new THREE.Group();
             scene.add(photoGroup);
 
-            // 事件
+            // 监听
             document.addEventListener('mousemove', onMouseMove, false);
             window.addEventListener('resize', onResize, false);
             document.getElementById('file-input').addEventListener('change', handleImageUpload);
             animate();
         }
 
-        // --- 核心：创建能源场景粒子 ---
-        function createEnergyParticles() {
-            const positions = []; const colors = []; const sizes = []; const partTypes = []; const initialPos = [];
+        // --- 建筑师：程序化生成工业场景 ---
+        function buildIndustrialCity() {
+            const positions = []; const colors = []; const sizes = []; const partTypes = []; 
+            const initialPos = []; const randomSeeds = [];
+            
             const tempVec = new THREE.Vector3();
             const tempCol = new THREE.Color();
 
-            // 辅助函数：添加粒子簇
-            function addParticleCluster(geometry, colorBase, type, count, posOffset, scaleMult=1) {
-                const posAttr = geometry.attributes.position;
-                for(let i=0; i<count; i++) {
-                    // 随机采样顶点
-                    const idx = Math.floor(Math.random() * posAttr.count);
-                    tempVec.fromBufferAttribute(posAttr, idx);
-                    // 应用变换
-                    tempVec.multiplyScalar(scaleMult);
-                    tempVec.add(posOffset);
-                    // 稍微抖动增加体积感
-                    tempVec.x += (Math.random()-0.5)*0.5;
-                    tempVec.y += (Math.random()-0.5)*0.5;
-                    tempVec.z += (Math.random()-0.5)*0.5;
+            // 辅助：添加粒子
+            function pushParticle(x, y, z, color, size, type) {
+                positions.push(x, y, z);
+                initialPos.push(x, y, z);
+                colors.push(color.r, color.g, color.b);
+                sizes.push(size);
+                partTypes.push(type);
+                randomSeeds.push(Math.random());
+            }
 
-                    positions.push(tempVec.x, tempVec.y, tempVec.z);
-                    initialPos.push(tempVec.x, tempVec.y, tempVec.z);
-
-                    // 颜色变奏
-                    tempCol.copy(colorBase);
-                    if(Math.random()>0.7) tempCol.lerp(CONFIG.colors.white, Math.random()*0.5); // 高光
-                    colors.push(tempCol.r, tempCol.g, tempCol.b);
+            // === 1. 冷却塔 (双曲面结构) ===
+            // 公式: x^2/a^2 + z^2/a^2 - y^2/b^2 = 1 (双曲面)
+            // 这里我们用参数方程生成
+            const towerCenter = new THREE.Vector3(10, 0, -10);
+            const towerRings = 80;   // 高度层数
+            const towerSegs = 60;    // 每层粒子数
+            
+            for(let y=0; y<towerRings; y++) {
+                let h = (y / towerRings) * 35; // 高度 0 -> 35
+                // 半径计算：双曲线收腰
+                // y=12时最细
+                let waistRel = (h - 12) / 12.0; 
+                let radius = 6.0 * Math.sqrt(1.0 + waistRel * waistRel * 0.4); 
+                
+                for(let i=0; i<towerSegs; i++) {
+                    let angle = (i / towerSegs) * Math.PI * 2;
+                    let px = towerCenter.x + Math.cos(angle) * radius;
+                    let pz = towerCenter.z + Math.sin(angle) * radius;
                     
-                    sizes.push(0.6 + Math.random()*0.8);
-                    partTypes.push(type);
+                    // 结构线增强 (经纬线)
+                    let isStructure = (i % 6 === 0) || (y % 5 === 0);
+                    let pColor = isStructure ? CONFIG.colors.cyan : CONFIG.colors.darkBase;
+                    let pSize = isStructure ? 0.8 : 0.4;
+                    
+                    pushParticle(px, h, pz, pColor, pSize, 0.0);
+                }
+            }
+            // 塔内蓝光核心
+            for(let i=0; i<500; i++) {
+                 let angle = Math.random() * Math.PI * 2;
+                 let r = Math.random() * 5.0;
+                 let h = Math.random() * 10.0;
+                 pushParticle(towerCenter.x + Math.cos(angle)*r, h, towerCenter.z + Math.sin(angle)*r, CONFIG.colors.cyan, 1.2, 0.0);
+            }
+            // 塔顶蒸汽源
+            for(let i=0; i<1000; i++) {
+                 // 初始位置在塔顶内部
+                 let angle = Math.random() * Math.PI * 2;
+                 let r = Math.random() * 5.0;
+                 pushParticle(towerCenter.x + Math.cos(angle)*r, 30, towerCenter.z + Math.sin(angle)*r, CONFIG.colors.grey, 2.0, 3.0);
+            }
+
+            // === 2. 风力发电机 (流线型) ===
+            const windPos = new THREE.Vector3(-25, 0, -10);
+            const windHeight = 35;
+            
+            // 塔筒 (锥形)
+            for(let h=0; h<windHeight; h+=0.5) {
+                let r = 1.5 * (1.0 - h/windHeight * 0.6); // 底部粗顶部细
+                for(let i=0; i<16; i++) {
+                    let angle = (i/16) * Math.PI * 2;
+                    pushParticle(windPos.x + Math.cos(angle)*r, h, windPos.z + Math.sin(angle)*r, CONFIG.colors.white, 0.6, 0.0);
+                }
+            }
+            // 轮毂
+            for(let i=0; i<200; i++) {
+                let v = new THREE.Vector3((Math.random()-0.5)*3, (Math.random()-0.5)*3, (Math.random()-0.5)*3);
+                v.add(new THREE.Vector3(windPos.x, windHeight, windPos.z));
+                pushParticle(v.x, v.y, v.z, CONFIG.colors.white, 1.0, 1.0); // Type 1 参与旋转
+            }
+            // 叶片 (3片)
+            const bladeLen = 22;
+            for(let b=0; b<3; b++) {
+                let baseAngle = (b / 3) * Math.PI * 2;
+                for(let l=2; l<bladeLen; l+=0.4) {
+                    // 叶片形状：中间宽，两头尖
+                    let width = 1.5 * Math.sin((l/bladeLen) * Math.PI); 
+                    for(let w=-width/2; w<width/2; w+=0.2) {
+                        // 初始只画一片向上的，Shader里做旋转
+                        // 这里我们构建局部坐标，Shader里统一转
+                        // 为了简单，我们手动算出三个叶片的初始点
+                        
+                        // 局部坐标
+                        let lx = w; 
+                        let ly = l;
+                        let lz = 0;
+                        
+                        // 旋转到对应叶片角度
+                        let rx = lx * Math.cos(baseAngle) - ly * Math.sin(baseAngle);
+                        let ry = lx * Math.sin(baseAngle) + ly * Math.cos(baseAngle);
+                        
+                        // 移到塔顶
+                        pushParticle(windPos.x + rx, windHeight + ry, windPos.z, CONFIG.colors.white, 0.5, 1.0);
+                    }
+                    // 叶尖加一点警示红
+                    if(l > bladeLen - 2) {
+                        let ry = l * Math.cos(baseAngle);
+                        let rx = -l * Math.sin(baseAngle); // 简化的旋转
+                         // 这里只加几个点示意
+                    }
                 }
             }
 
-            // 1. 凉水塔 (Cooling Tower) - 静态 (Type 0)
-            // 使用两个圆台拼接模拟双曲线
-            const towerBotGeo = new THREE.CylinderGeometry(7, 10, 12, 32, 10, true);
-            towerBotGeo.translate(0, 6, 0);
-            const towerTopGeo = new THREE.CylinderGeometry(8, 7, 10, 32, 10, true);
-            towerTopGeo.translate(0, 17, 0);
-            addParticleCluster(towerBotGeo, CONFIG.colors.techBlue, 0, 1500, new THREE.Vector3(0,0,-10));
-            addParticleCluster(towerTopGeo, CONFIG.colors.techBlue, 0, 1200, new THREE.Vector3(0,0,-10));
+            // === 3. 光伏阵列 (矩阵美学) ===
+            const pvRows = 8;
+            const pvCols = 10;
+            const pvSpaceX = 6;
+            const pvSpaceZ = 4;
+            const pvStartX = -30;
+            const pvStartZ = 5;
 
-            // 2. 蒸汽 (Steam) - 动态 (Type 3)
-            const steamGeo = new THREE.CylinderGeometry(8, 2, 5, 16);
-            addParticleCluster(steamGeo, CONFIG.colors.steamGrey, 3, 800, new THREE.Vector3(0, 22, -10));
-
-            // 3. 风机 (Wind Turbine)
-            // 塔筒 (Static Type 0)
-            const poleGeo = new THREE.CylinderGeometry(0.8, 1.5, 25, 16);
-            poleGeo.translate(0, 12.5, 0);
-            addParticleCluster(poleGeo, CONFIG.colors.white, 0, 800, new THREE.Vector3(-15, 0, -5));
-            // 机舱 (Static Type 0)
-            const nacelleGeo = new THREE.BoxGeometry(3, 2, 4);
-            addParticleCluster(nacelleGeo, CONFIG.colors.white, 0, 200, new THREE.Vector3(-15, 25, -5));
-            // 叶片 (Dynamic Type 1)
-            const bladeGeo = new THREE.BoxGeometry(0.8, 14, 0.5);
-            bladeGeo.translate(0, 7, 0); // 轴心在根部
-            for(let i=0; i<3; i++) {
-                 const bladeRot = bladeGeo.clone();
-                 bladeRot.rotateZ(i * Math.PI * 2 / 3);
-                 addParticleCluster(bladeRot, CONFIG.colors.brightCyan, 1, 400, new THREE.Vector3(-15, 25, -5));
-            }
-
-            // 4. 光伏板 (PV Panels) - 动态闪烁 (Type 2)
-            const panelGeo = new THREE.PlaneGeometry(5, 3);
-            panelGeo.rotateX(-Math.PI/2 * 0.7); // 倾斜
-            for(let x=-20; x<=20; x+=6) {
-                for(let z=5; z<=15; z+=4) {
-                    addParticleCluster(panelGeo, CONFIG.colors.energyGold, 2, 150, new THREE.Vector3(x, 1, z));
+            for(let r=0; r<pvRows; r++) {
+                for(let c=0; c<pvCols; c++) {
+                    let cx = pvStartX + c * pvSpaceX;
+                    let cz = pvStartZ + r * pvSpaceZ;
+                    
+                    // 每个板子是一个矩形面，倾斜
+                    for(let px=-2.5; px<=2.5; px+=0.3) {
+                        for(let pz=-1.5; pz<=1.5; pz+=0.3) {
+                            // 倾斜计算: 绕X轴转
+                            let py = 2.0 + pz * 0.5; // 后高前低
+                            let realZ = cz + pz;
+                            
+                            // 边缘检测
+                            let isBorder = (Math.abs(px)>2.3 || Math.abs(pz)>1.3);
+                            let col = isBorder ? CONFIG.colors.orange : CONFIG.colors.darkBase;
+                            let sz = isBorder ? 0.6 : 0.4;
+                            
+                            // 稍微随机化位置，打破摩尔纹
+                            pushParticle(cx + px, py, realZ, col, sz, 2.0);
+                        }
+                    }
                 }
             }
 
-            // 合并几何体
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geo.setAttribute('initialPos', new THREE.Float32BufferAttribute(initialPos, 3));
-            geo.setAttribute('customColor', new THREE.Float32BufferAttribute(colors, 3));
-            geo.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-            geo.setAttribute('partType', new THREE.Float32BufferAttribute(partTypes, 1));
+            // === 4. 全息地面 (网格) ===
+            for(let x=-60; x<=60; x+=2) {
+                for(let z=-40; z<=40; z+=2) {
+                    if(Math.random() > 0.9) { // 稀疏点阵
+                        pushParticle(x, 0, z, CONFIG.colors.cyan, 0.4, 4.0);
+                    }
+                    // 加几条高亮线
+                    if(x % 20 === 0 && z % 2 === 0) {
+                         pushParticle(x, 0, z, CONFIG.colors.white, 0.5, 4.0);
+                    }
+                }
+            }
 
+            // 构建几何体
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('initialPos', new THREE.Float32BufferAttribute(initialPos, 3));
+            geometry.setAttribute('customColor', new THREE.Float32BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+            geometry.setAttribute('partType', new THREE.Float32BufferAttribute(partTypes, 1));
+            geometry.setAttribute('randomSeed', new THREE.Float32BufferAttribute(randomSeeds, 1));
+
+            // Shader 材质
             uniforms = {
                 time: { value: 0.0 },
-                operateFactor: { value: 0.0 },
-                scatter: { value: 0.0 }
+                runSpeed: { value: 0.1 },
+                scatter: { value: 0.0 },
+                mousePos: { value: new THREE.Vector3(0,0,0) }
             };
 
-            const mat = new THREE.ShaderMaterial({
+            const material = new THREE.ShaderMaterial({
                 uniforms: uniforms,
                 vertexShader: document.getElementById('vertexshader').textContent,
                 fragmentShader: document.getElementById('fragmentshader').textContent,
@@ -350,23 +466,32 @@
                 depthTest: false,
                 transparent: true
             });
-            particles = new THREE.Points(geo, mat);
+
+            particles = new THREE.Points(geometry, material);
             scene.add(particles);
         }
 
         // --- 交互与动画 ---
         function onMouseMove(e) {
-            if (!STATE.handVisible && STATE.mode === 'SCATTER') {
-                // 简单的鼠标视角控制
-                const x = (e.clientX / window.innerWidth) * 2 - 1;
-                const y = -(e.clientY / window.innerHeight) * 2 + 1;
-                camera.position.x = x * 20;
-                camera.position.y = 20 + y * 5;
-                camera.lookAt(0, 5, 0);
+            // 简单的鼠标视差，不改变 uniforms.mousePos (给 Shader 用)
+            let mx = (e.clientX / window.innerWidth) * 2 - 1;
+            let my = -(e.clientY / window.innerHeight) * 2 + 1;
+            
+            // 缓慢移动相机
+            if(STATE.mode !== 'SCATTER') {
+                camera.position.x += (mx * 10 - camera.position.x) * 0.05;
+                camera.position.y += (20 + my * 5 - camera.position.y) * 0.05;
+                camera.lookAt(0, 10, 0);
             }
         }
-        function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); if(composer) composer.setSize(window.innerWidth, window.innerHeight);}
         
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if(composer) composer.setSize(window.innerWidth, window.innerHeight);
+        }
+
         function handleImageUpload(e) {
             const files = e.target.files; if(!files.length) return;
             Array.from(files).forEach(f => {
@@ -375,94 +500,111 @@
                 r.readAsDataURL(f);
             });
         }
+        
         function createPhoto(img) {
-            const tex = new THREE.Texture(img); tex.needsUpdate=true; tex.encoding=THREE.sRGBEncoding;
+            const tex = new THREE.Texture(img); tex.needsUpdate=true;
             const aspect = img.width/img.height;
             const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(6*aspect, 6), mat);
-            const frame = new THREE.Mesh(new THREE.BoxGeometry(6*aspect+0.2, 6.2, 0.1), new THREE.MeshStandardMaterial({color:0x00aaff}));
-            mesh.position.z = 0.06; frame.add(mesh);
-            // 随机出现在光伏板上方
-            const x = (Math.random()-0.5)*40; const z = 5 + Math.random()*10;
-            frame.position.set(x, 15, z);
-            frame.userData = { 
-                home: frame.position.clone(), 
-                scat: new THREE.Vector3((Math.random()-0.5)*150, (Math.random()-0.5)*100, (Math.random()-0.5)*150),
-                focus: false 
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(8*aspect, 8), mat);
+            // 赛博风格边框
+            const borderGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(8*aspect, 8));
+            const borderMat = new THREE.LineBasicMaterial( { color: 0x00f3ff } );
+            const border = new THREE.LineSegments( borderGeo, borderMat );
+            mesh.add(border);
+            
+            // 初始位置：塔顶漂浮
+            mesh.position.set(10, 40, -10);
+            mesh.userData = {
+                home: mesh.position.clone(),
+                scat: new THREE.Vector3((Math.random()-0.5)*100, (Math.random()-0.5)*50, (Math.random()-0.5)*100),
+                focus: false
             };
-            photoGroup.add(frame); photosData.push(frame);
+            photoGroup.add(mesh); photosData.push(mesh);
         }
 
         function animate() {
             requestAnimationFrame(animate);
             const time = Date.now() * 0.001;
+            
             if(uniforms) {
                 uniforms.time.value = time;
-                // 状态平滑
-                let to = (STATE.mode === 'OPERATING') ? 1.0 : 0.0;
-                let ts = (STATE.mode === 'SCATTER') ? 1.0 : 0.0;
-                uniforms.operateFactor.value += (to - uniforms.operateFactor.value) * 0.05;
-                uniforms.scatter.value += (ts - uniforms.scatter.value) * 0.05;
+                
+                // 状态平滑过渡
+                let targetSpeed = 0.1; // 待机微动
+                let targetScatter = 0.0;
+                
+                if (STATE.mode === 'OPERATING') targetSpeed = 2.0; // 全速
+                if (STATE.mode === 'SCATTER') targetScatter = 1.0;
+                
+                uniforms.runSpeed.value += (targetSpeed - uniforms.runSpeed.value) * 0.02;
+                uniforms.scatter.value += (targetScatter - uniforms.scatter.value) * 0.02;
             }
 
             // 照片动画
             photosData.forEach(p => {
-                const d = p.userData; let tgt = (STATE.mode === 'SCATTER') ? d.scat : d.home;
+                const d = p.userData; 
+                let tgt = (STATE.mode === 'SCATTER') ? d.scat : d.home;
+                
                 if(d.focus) {
-                    const v = new THREE.Vector3(0,0,-15).applyQuaternion(camera.quaternion); tgt = camera.position.clone().add(v);
+                    const v = new THREE.Vector3(0,0,-20).applyQuaternion(camera.quaternion); 
+                    tgt = camera.position.clone().add(v);
                     p.lookAt(camera.position); 
                 } else {
                     p.lookAt(camera.position);
-                    if(STATE.mode === 'OPERATING') tgt.y = d.home.y + Math.sin(time*2 + p.id)*1.5; // 运行时上下浮动
+                    // 浮动动画
+                    if(STATE.mode !== 'SCATTER') {
+                         p.position.y = d.home.y + Math.sin(time + p.id)*2.0;
+                    }
                 }
                 p.position.lerp(tgt, 0.05);
             });
 
-            if(STATE.mode !== 'SCATTER') {
-                 camera.position.lerp(new THREE.Vector3(0, 20, CONFIG.cameraZ), 0.05);
-                 camera.lookAt(0, 5, 0);
-            }
-
             if(composer) composer.render(); else renderer.render(scene, camera);
         }
 
-        // --- AI 手势 ---
+        // --- AI 手势 (沿用稳定逻辑) ---
         async function startAI() {
             const video = document.getElementsByClassName('input_video')[0];
             const stat = document.getElementById('gesture-status');
-            if(typeof Hands === 'undefined') { stat.innerText = "仅鼠标模式"; return; }
+            
+            if(typeof Hands === 'undefined') return;
+
             const hands = new Hands({locateFile: (file) => `https://unpkg.com/@mediapipe/hands/${file}`});
             hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
             hands.onResults(res => {
                 if(res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
-                    STATE.handVisible = true; const lm = res.multiHandLandmarks[0];
-                    // V手势
+                    const lm = res.multiHandLandmarks[0];
+                    
+                    // 剪刀手 -> Operating
                     if (lm[8].y < lm[6].y && lm[12].y < lm[10].y && lm[16].y > lm[14].y) {
-                        STATE.mode = 'OPERATING'; stat.innerText = "✌️ 全面运行 (Operating)";
-                    } else if (Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05) {
-                        STATE.gesture = 'PINCH'; stat.innerText = "👌 抓取照片 (Grab)";
-                        handleGrab();
-                    } else if (lm[8].y > lm[5].y) { // 拳头
-                        STATE.mode = 'ENERGY'; stat.innerText = "✊ 静态展示 (Static)";
-                    } else {
-                        STATE.mode = 'SCATTER'; stat.innerText = "🖐 散开漫游 (Scatter)";
-                        resetPhoto();
+                        STATE.mode = 'OPERATING'; stat.innerText = "⚡ 全负荷运行 (MAX POWER)";
+                    } 
+                    // 捏合 -> Grab
+                    else if (Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05) {
+                        stat.innerText = "👌 抓取全息图 (GRAB)";
+                        if(photosData.length>0) {
+                            photosData.forEach(p=>p.userData.focus=false);
+                            photosData[photosData.length-1].userData.focus = true;
+                        }
+                    }
+                    // 拳头 -> Static
+                    else if (lm[8].y > lm[5].y && lm[12].y > lm[9].y) {
+                        STATE.mode = 'ENERGY'; stat.innerText = "🛑 待机状态 (STANDBY)";
+                    } 
+                    // 张开 -> Scatter
+                    else {
+                        STATE.mode = 'SCATTER'; stat.innerText = "🌌 结构解构 (SCATTER)";
+                        photosData.forEach(p=>p.userData.focus=false);
                     }
                 } else {
-                    STATE.handVisible = false; stat.innerText = "等待手势...";
+                    stat.innerText = "等待指令...";
                 }
             });
+            
             const cam = new Camera(video, { onFrame: async () => { await hands.send({image: video}); }, width: 480, height: 360 });
-            await cam.start(); stat.innerText = "AI 激活";
+            await cam.start();
+            stat.innerText = "AI LINKED";
         }
-
-        function handleGrab() {
-            if(photosData.length === 0 || STATE.mode === 'SCATTER') return;
-            // 简单逻辑：抓取最新的照片
-            resetPhoto();
-            photosData[photosData.length-1].userData.focus = true;
-        }
-        function resetPhoto() { photosData.forEach(p=>p.userData.focus=false); }
     </script>
 </body>
 </html>
