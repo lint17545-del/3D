@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>3D Particle Horse - Perfect Frame</title>
+    <title>3D Photo Memory Horse - Final</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #020205; font-family: 'Arial', sans-serif; }
         
@@ -11,10 +11,26 @@
         #ui-layer { position: absolute; top: 20px; right: 20px; z-index: 10; color: #fff; text-align: right; pointer-events: none; }
         h1 { margin: 0; font-size: 24px; color: #FFD700; letter-spacing: 2px; text-shadow: 0 0 20px rgba(196, 30, 58, 0.5); font-weight: 300; }
         .status { font-size: 16px; color: rgba(255,255,255,0.8); margin-top: 10px; font-weight: normal; letter-spacing: 1px;}
+        .tips { font-size: 12px; color: #aaa; margin-top: 5px; margin-bottom: 15px;}
+
+        /* 上传按钮样式 */
+        #upload-container { pointer-events: auto; display: inline-block; }
+        input[type="file"] { display: none; }
+        .btn { 
+            background: rgba(255, 215, 0, 0.1); 
+            border: 1px solid #FFD700; 
+            padding: 8px 15px; 
+            color: #FFD700; 
+            font-size: 12px;
+            cursor: pointer; 
+            border-radius: 4px; 
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .btn:hover { background: #FFD700; color: #000; box-shadow: 0 0 15px #FFD700; }
         
         #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #FFD700; z-index: 20; font-size: 16px; text-align: center; letter-spacing: 2px; }
-        
-        /* 增加鼠标提示，避免用户不知道可以滚轮缩放 */
         #hint { position: absolute; bottom: 30px; width: 100%; text-align: center; color: rgba(255,255,255,0.3); font-size: 12px; pointer-events: none; }
     </style>
     <script type="importmap">
@@ -32,13 +48,22 @@
 </head>
 <body>
 
-    <div id="loading">正在进行构图计算...</div>
+    <div id="loading">正在编织记忆网络...</div>
     
     <div id="ui-layer">
-        <h1>粒子灵驹 · 构图修正版</h1>
+        <h1>记忆灵驹 · 最终章</h1>
         <div class="status" id="status-text">等待指令...</div>
+        <div class="tips">✊握拳:聚合 | 🖐张开:星云 | 👌捏合:查看照片</div>
+        
+        <div id="upload-container">
+            <label class="btn">
+                + 上传照片 (注入记忆)
+                <input type="file" id="file-input" multiple accept="image/*">
+            </label>
+        </div>
     </div>
-    <div id="hint">支持鼠标滚轮调整远近 | 手势控制旋转</div>
+    
+    <div id="hint">滚轮缩放 | 拖拽旋转 | 捏合手指查看细节</div>
 
     <video id="video-element" playsinline></video>
     <div id="canvas-container"></div>
@@ -52,7 +77,7 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
         const CONFIG = {
-            particleCount: 6000, // 粒子更密，增强体积感
+            particleCount: 6000, 
             colors: [0x0F52BA, 0xFFD700, 0xC41E3A], 
             modelUrl: 'https://threejs.org/examples/models/gltf/Horse.glb'
         };
@@ -63,8 +88,7 @@
         let state = 'CONVERGED';
         let time = 0;
         let handPosition = { x: 0.5, y: 0.5 };
-        // 增加一个全局中心点，用于构图
-        let modelCenter = new THREE.Vector3(0,0,0);
+        let activeZoomParticle = null; // 当前正在查看的照片粒子
 
         init();
         animate();
@@ -72,11 +96,9 @@
 
         function init() {
             scene = new THREE.Scene();
-            // 背景改为更有深度的径向渐变模拟（这里用Fog配合暗色）
             scene.fog = new THREE.FogExp2(0x020205, 0.0015);
 
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
-            // 初始位置稍微远一点，等模型加载完会自动对焦
             camera.position.set(0, 0, 400);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -84,23 +106,16 @@
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-            // 灯光优化：主光源 + 轮廓光 + 补光
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
             scene.add(ambientLight);
-            
             const mainLight = new THREE.DirectionalLight(0xffffff, 1);
             mainLight.position.set(50, 50, 100);
             scene.add(mainLight);
-            
-            const rimLight = new THREE.SpotLight(0x0F52BA, 5); // 蓝色轮廓光
-            rimLight.position.set(-50, 50, -50);
-            rimLight.lookAt(0,0,0);
-            scene.add(rimLight);
 
             // 后处理
             const renderScene = new RenderPass(scene, camera);
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            bloomPass.strength = 1.2; // 辉光强度适中
+            bloomPass.strength = 1.0; 
             bloomPass.radius = 0.5;
             bloomPass.threshold = 0.1;
             
@@ -111,7 +126,6 @@
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.enableZoom = true; // 允许用户自己微调
 
             loadModel();
 
@@ -120,6 +134,68 @@
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
                 composer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            // 绑定上传事件
+            document.getElementById('file-input').addEventListener('change', handleFileUpload);
+        }
+
+        // --- 照片处理逻辑 ---
+        function handleFileUpload(event) {
+            const files = event.target.files;
+            if (!files.length) return;
+
+            const textureLoader = new THREE.TextureLoader();
+            const photoParticlesIndices = [];
+
+            // 随机挑选一些粒子变成照片
+            // 我们保留大部分粒子作为“身体”，只挑选约 10% 的粒子作为照片载体
+            for(let i=0; i<files.length; i++) {
+                 // 每张照片分配给 50 个粒子
+                 for(let j=0; j<50; j++) {
+                     const randIdx = Math.floor(Math.random() * particles.length);
+                     photoParticlesIndices.push({ idx: randIdx, fileIndex: i });
+                 }
+            }
+
+            let loadedCount = 0;
+
+            Array.from(files).forEach((file, fileIndex) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        const texture = new THREE.Texture(img);
+                        texture.needsUpdate = true;
+                        texture.colorSpace = THREE.SRGBColorSpace; // 颜色校正
+
+                        // 找到分配给这张图的所有粒子，并替换材质
+                        const targetIndices = photoParticlesIndices.filter(p => p.fileIndex === fileIndex);
+                        
+                        targetIndices.forEach(item => {
+                            const p = particles[item.idx];
+                            p.isPhoto = true;
+                            
+                            // 替换几何体为平面
+                            p.mesh.geometry = new THREE.PlaneGeometry(1.5, 1.5); // 照片粒子大一点
+                            p.mesh.material = new THREE.MeshBasicMaterial({ 
+                                map: texture, 
+                                side: THREE.DoubleSide, 
+                                transparent: true,
+                                opacity: 0.9 
+                            });
+                            // 初始让照片都朝向相机
+                            p.mesh.lookAt(camera.position);
+                        });
+                        
+                        loadedCount++;
+                        if(loadedCount === files.length) {
+                            alert(`成功注入 ${files.length} 段记忆！\n试试捏合手指 (👌) 抓取它们。`);
+                        }
+                    };
+                };
+                reader.readAsDataURL(file);
             });
         }
 
@@ -131,10 +207,7 @@
                 model.traverse((child) => {
                     if (child.isMesh) mesh = child;
                 });
-
-                if(mesh) {
-                    createParticlesFromMesh(mesh);
-                }
+                if(mesh) createParticlesFromMesh(mesh);
                 document.getElementById('loading').style.display = 'none';
             });
         }
@@ -148,46 +221,29 @@
             const targetPoints = [];
             const tempVec = new THREE.Vector3();
 
-            // 1. 获取所有点
             for(let i=0; i<count; i++) {
                 tempVec.fromBufferAttribute(posAttr, i);
                 targetPoints.push(tempVec.clone());
             }
 
-            // 2. 计算包围盒 (Bounding Box)
-            // 这就是解决“太大”或“太小”的关键
+            // 自动构图逻辑
             const box = new THREE.Box3().setFromPoints(targetPoints);
             const size = box.getSize(new THREE.Vector3());
             const center = box.getCenter(new THREE.Vector3());
-            modelCenter.copy(center);
+            targetPoints.forEach(p => p.sub(center));
 
-            // 3. 将所有点归一化并移动到原点中心
-            // 我们不依赖模型的原始坐标，而是手动把它们居中
-            targetPoints.forEach(p => {
-                p.sub(center); // 居中
-            });
-
-            // 4. 计算最佳相机距离 (Fit to Screen)
-            // 根据 FOV 和 模型最大边长，反推相机 z 轴
             const maxDim = Math.max(size.x, size.y, size.z);
             const fov = camera.fov * (Math.PI / 180);
-            let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-            cameraZ *= 1.2; // 乘以 1.2 留出 20% 的边距 (Padding)
-
-            // 移动相机到最佳位置
+            let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.2;
             gsap.to(camera.position, { z: cameraZ, duration: 2, ease: "power2.out" });
-            controls.target.set(0, 0, 0); // 确然看的是中心
 
-            // 5. 生成粒子
             const shuffledPoints = targetPoints.sort(() => Math.random() - 0.5).slice(0, CONFIG.particleCount);
-            const geom = new THREE.BoxGeometry(0.5, 0.5, 0.5); // 稍微细腻一点的粒子
+            const geom = new THREE.BoxGeometry(0.5, 0.5, 0.5);
             const materials = CONFIG.colors.map(c => new THREE.MeshBasicMaterial({ color: c }));
 
             shuffledPoints.forEach(pt => {
                 const mat = materials[Math.floor(Math.random() * materials.length)];
                 const pMesh = new THREE.Mesh(geom, mat);
-                
-                // 散开范围根据模型本身大小来定，而不是写死
                 const scatterRange = maxDim * 2; 
                 const scatterPos = new THREE.Vector3(
                     (Math.random()-0.5) * scatterRange,
@@ -206,50 +262,90 @@
                 particles.push({
                     mesh: pMesh,
                     targetPos: pt,
-                    scatterPos: scatterPos
+                    scatterPos: scatterPos,
+                    isPhoto: false // 标记是否为照片
                 });
             });
-            
             updateState('DISPERSED');
         }
 
         function updateState(newState) {
-            if (state === newState) return;
-            state = newState;
+            if (state === newState && state !== 'ZOOM') return; // ZOOM 允许重复触发以切换照片
             
+            // 如果从 ZOOM 切换出去，先重置之前的 activeZoomParticle
+            if (state === 'ZOOM' && newState !== 'ZOOM' && activeZoomParticle) {
+                 const p = activeZoomParticle;
+                 // 飞回它应该在的位置 (根据当前大状态决定是 targetPos 还是 scatterPos)
+                 // 为了简单，我们假设松开手就是回到 CONVERGED 或 DISPERSED
+                 // 这里不做复杂判断，直接由下面的循环接管
+            }
+
+            state = newState;
             const statusEl = document.getElementById('status-text');
 
             if (state === 'CONVERGED') {
-                statusEl.innerText = "状态: 聚合";
+                statusEl.innerText = "状态: 聚合 (战马)";
                 statusEl.style.color = "#FFD700";
-
                 particles.forEach(p => {
                     gsap.to(p.mesh.position, {
-                        x: p.targetPos.x,
-                        y: p.targetPos.y,
-                        z: p.targetPos.z,
-                        duration: 1.8, // 稍微慢一点，更优雅
-                        ease: "power3.inOut" // 更平滑的加减速
+                        x: p.targetPos.x, y: p.targetPos.y, z: p.targetPos.z,
+                        duration: 1.5, ease: "power3.inOut"
                     });
-                    // 聚合时粒子稍微变小一点，显得精致
-                    gsap.to(p.mesh.scale, { x: 1, y: 1, z: 1, duration: 1.5 });
+                    gsap.to(p.mesh.scale, { x: 1, y: 1, z: 1, duration: 1 });
+                    if(p.isPhoto) {
+                        // 照片在聚合时变小一点，融入身体
+                         gsap.to(p.mesh.scale, { x: 0.5, y: 0.5, z: 0.5, duration: 1 });
+                         // 旋转对齐
+                         gsap.to(p.mesh.rotation, { x: 0, y: 0, z: 0, duration: 1 });
+                    }
                 });
 
             } else if (state === 'DISPERSED') {
-                statusEl.innerText = "状态: 散开 (手势控制)";
+                statusEl.innerText = "状态: 散开 (星云)";
                 statusEl.style.color = "#00ffff";
-
                 particles.forEach(p => {
                     gsap.to(p.mesh.position, {
-                        x: p.scatterPos.x,
-                        y: p.scatterPos.y,
-                        z: p.scatterPos.z,
-                        duration: 2.0,
-                        ease: "power2.out"
+                        x: p.scatterPos.x, y: p.scatterPos.y, z: p.scatterPos.z,
+                        duration: 2.0, ease: "power2.out"
                     });
-                    // 散开时粒子变大，更有氛围感
-                    gsap.to(p.mesh.scale, { x: 2, y: 2, z: 2, duration: 1.5 });
+                    gsap.to(p.mesh.scale, { x: 2, y: 2, z: 2, duration: 1 });
+                     if(p.isPhoto) {
+                         gsap.to(p.mesh.scale, { x: 3, y: 3, z: 3, duration: 1 }); // 照片散开时大一点
+                         p.mesh.lookAt(camera.position); // 始终看向相机
+                    }
                 });
+
+            } else if (state === 'ZOOM') {
+                statusEl.innerText = "状态: 📸 回忆浮现";
+                statusEl.style.color = "#ff00ff";
+                
+                // 1. 找到所有的照片粒子
+                const photoParticles = particles.filter(p => p.isPhoto);
+                
+                if (photoParticles.length > 0) {
+                    // 2. 随机选一个 (为了效果，我们每次抓一个新的)
+                    const target = photoParticles[Math.floor(Math.random() * photoParticles.length)];
+                    activeZoomParticle = target;
+
+                    // 3. 计算相机前方的位置
+                    const camDir = new THREE.Vector3();
+                    camera.getWorldDirection(camDir);
+                    // 距离相机 50 单位处
+                    const showPos = camera.position.clone().add(camDir.multiplyScalar(50));
+                    
+                    // 4. 动画飞过来
+                    gsap.to(target.mesh.position, {
+                        x: showPos.x, y: showPos.y, z: showPos.z,
+                        duration: 1, ease: "back.out(1.2)"
+                    });
+                    // 放大显示
+                    gsap.to(target.mesh.scale, { x: 15, y: 15, z: 1, duration: 1 });
+                    // 正对屏幕
+                    target.mesh.lookAt(camera.position);
+                } else {
+                    // 没有上传照片时
+                    statusEl.innerText = "提示: 请先上传照片";
+                }
             }
         }
 
@@ -259,34 +355,31 @@
             
             if (!group) return;
 
-            // 1. 整体呼吸感 (Breath)
-            // 无论什么状态，整体都有一种极缓慢的上下浮动，打破死板
+            // 呼吸律动
             group.position.y = Math.sin(time * 0.5) * 2; 
 
             if (state === 'DISPERSED') {
-                // 散开态：粒子游动
                 particles.forEach(p => {
+                    // 排除正在 ZOOM 的粒子，不要让它乱动
+                    if (state === 'ZOOM' && p === activeZoomParticle) return;
+
                     const offset = p.mesh.userData.randomOffset;
-                    // 使用噪点式的移动，不仅仅是上下
                     p.mesh.position.x += Math.cos(time + offset) * 0.05;
                     p.mesh.position.y += Math.sin(time + offset) * 0.05;
-                    p.mesh.position.z += Math.sin(time * 0.5 + offset) * 0.05;
+                    
+                    // 照片粒子自转展示
+                    if (p.isPhoto) {
+                         p.mesh.lookAt(camera.position);
+                    }
                 });
 
-                // 手势柔和跟随
+                // 手势控制
                 const targetRotY = (handPosition.x - 0.5) * 2; 
                 const targetRotX = (handPosition.y - 0.5) * 1;
-
-                // 阻尼更大(0.03)，惯性更强，感觉更重、更高级
                 group.rotation.y += (targetRotY - group.rotation.y) * 0.03;
                 group.rotation.x += (targetRotX - group.rotation.x) * 0.03;
-
-            } else {
-                // 聚合态：非常缓慢的自转展示
+            } else if (state === 'CONVERGED') {
                 group.rotation.y += 0.002;
-                // 也要响应一点点手势，但很微弱
-                const targetRotX = (handPosition.y - 0.5) * 0.5;
-                group.rotation.x += (targetRotX - group.rotation.x) * 0.05;
             }
 
             controls.update();
@@ -302,25 +395,34 @@
                 if (!results.multiHandLandmarks || !results.multiHandLandmarks.length) return;
                 
                 const lm = results.multiHandLandmarks[0];
-                
-                // 更新手势位置
                 const palmX = (lm[0].x + lm[9].x) / 2;
                 const palmY = (lm[0].y + lm[9].y) / 2;
                 handPosition.x = 1 - palmX; 
                 handPosition.y = palmY;
 
+                // 捏合检测 (食指8 和 拇指4)
+                const thumbTip = lm[4];
+                const indexTip = lm[8];
+                const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+
                 // 状态判定
                 const tips = [8, 12, 16, 20];
                 const bases = [5, 9, 13, 17];
                 let openCount = 0;
-                tips.forEach((tip, i) => {
-                    if (lm[tip].y < lm[bases[i]].y) openCount++;
-                });
+                tips.forEach((tip, i) => { if (lm[tip].y < lm[bases[i]].y) openCount++; });
 
-                if (openCount >= 3) {
-                    updateState('DISPERSED');
+                // 逻辑优先级：
+                // 1. 捏合 -> 抓取照片 (优先)
+                // 2. 张开 -> 散开
+                // 3. 握拳 -> 聚合
+
+                if (pinchDist < 0.05) {
+                    // 加一个简单的防抖，防止连续触发
+                    if (state !== 'ZOOM') updateState('ZOOM');
+                } else if (openCount >= 3) {
+                    if (state !== 'DISPERSED') updateState('DISPERSED');
                 } else if (openCount <= 1) {
-                    updateState('CONVERGED');
+                    if (state !== 'CONVERGED') updateState('CONVERGED');
                 }
             });
 
