@@ -2,19 +2,20 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>3D Interactive Horse - Final</title>
+    <title>3D Particle Horse - Perfect Frame</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #020205; font-family: 'Arial', sans-serif; }
         
-        /* 视频框稍微大一点，方便看手势 */
-        #video-element { position: absolute; top: 20px; left: 20px; width: 200px; height: 150px; z-index: 2; transform: scaleX(-1); border: 2px solid #FFD700; border-radius: 12px; opacity: 0.6; }
+        #video-element { position: absolute; top: 20px; left: 20px; width: 160px; height: 120px; z-index: 2; transform: scaleX(-1); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 8px; opacity: 0.5; }
         
         #ui-layer { position: absolute; top: 20px; right: 20px; z-index: 10; color: #fff; text-align: right; pointer-events: none; }
-        h1 { margin: 0; font-size: 28px; color: #FFD700; letter-spacing: 4px; text-shadow: 0 0 20px #C41E3A; }
-        .status { font-size: 20px; color: #00ff00; margin-top: 15px; font-weight: bold; text-shadow: 0 0 5px #00ff00; }
-        .tips { font-size: 14px; color: #aaa; margin-top: 5px; }
+        h1 { margin: 0; font-size: 24px; color: #FFD700; letter-spacing: 2px; text-shadow: 0 0 20px rgba(196, 30, 58, 0.5); font-weight: 300; }
+        .status { font-size: 16px; color: rgba(255,255,255,0.8); margin-top: 10px; font-weight: normal; letter-spacing: 1px;}
         
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #FFD700; z-index: 20; font-size: 24px; text-align: center; background: rgba(0,0,0,0.8); padding: 40px; border-radius: 10px; border: 1px solid #FFD700;}
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #FFD700; z-index: 20; font-size: 16px; text-align: center; letter-spacing: 2px; }
+        
+        /* 增加鼠标提示，避免用户不知道可以滚轮缩放 */
+        #hint { position: absolute; bottom: 30px; width: 100%; text-align: center; color: rgba(255,255,255,0.3); font-size: 12px; pointer-events: none; }
     </style>
     <script type="importmap">
         {
@@ -31,14 +32,13 @@
 </head>
 <body>
 
-    <div id="loading">正在加载资源...<br><span style="font-size:16px; color:#fff">模型放大中 | 粒子系统初始化</span></div>
+    <div id="loading">正在进行构图计算...</div>
     
     <div id="ui-layer">
-        <h1>御马 · 幻境</h1>
-        <div class="status" id="status-text">等待手势指令...</div>
-        <div class="tips">🖐 张开手掌：操控星云旋转</div>
-        <div class="tips">✊ 握紧拳头：聚合召唤战马</div>
+        <h1>粒子灵驹 · 构图修正版</h1>
+        <div class="status" id="status-text">等待指令...</div>
     </div>
+    <div id="hint">支持鼠标滚轮调整远近 | 手势控制旋转</div>
 
     <video id="video-element" playsinline></video>
     <div id="canvas-container"></div>
@@ -49,24 +49,22 @@
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
         import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // --- 配置参数 ---
         const CONFIG = {
-            particleCount: 5000, // 粒子数量增加
-            colors: [0x0F52BA, 0xFFD700, 0xC41E3A], // 蓝、金、红
-            modelUrl: 'https://threejs.org/examples/models/gltf/Horse.glb',
-            scaleFactor: 0.6 // 模型放大倍数 (原来是0.2)
+            particleCount: 6000, // 粒子更密，增强体积感
+            colors: [0x0F52BA, 0xFFD700, 0xC41E3A], 
+            modelUrl: 'https://threejs.org/examples/models/gltf/Horse.glb'
         };
 
-        let scene, camera, renderer, composer;
+        let scene, camera, renderer, composer, controls;
         let particles = [];
         let group;
         let state = 'CONVERGED';
         let time = 0;
-        
-        // 手势交互变量
-        let handPosition = { x: 0.5, y: 0.5 }; // 归一化坐标 (0-1)
-        let targetRotation = { x: 0, y: 0 };   // 目标旋转角度
+        let handPosition = { x: 0.5, y: 0.5 };
+        // 增加一个全局中心点，用于构图
+        let modelCenter = new THREE.Vector3(0,0,0);
 
         init();
         animate();
@@ -74,33 +72,46 @@
 
         function init() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x020205, 0.002);
+            // 背景改为更有深度的径向渐变模拟（这里用Fog配合暗色）
+            scene.fog = new THREE.FogExp2(0x020205, 0.0015);
 
-            // 相机更近，视野更有冲击力
-            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 10, 100); 
-            camera.lookAt(0, 0, 0);
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+            // 初始位置稍微远一点，等模型加载完会自动对焦
+            camera.position.set(0, 0, 400);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-            // 灯光系统
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            // 灯光优化：主光源 + 轮廓光 + 补光
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
             scene.add(ambientLight);
-            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-            dirLight.position.set(10, 20, 20);
-            scene.add(dirLight);
+            
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1);
+            mainLight.position.set(50, 50, 100);
+            scene.add(mainLight);
+            
+            const rimLight = new THREE.SpotLight(0x0F52BA, 5); // 蓝色轮廓光
+            rimLight.position.set(-50, 50, -50);
+            rimLight.lookAt(0,0,0);
+            scene.add(rimLight);
 
-            // 辉光效果
+            // 后处理
             const renderScene = new RenderPass(scene, camera);
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            bloomPass.strength = 1.0;
-            bloomPass.radius = 0.6;
+            bloomPass.strength = 1.2; // 辉光强度适中
+            bloomPass.radius = 0.5;
+            bloomPass.threshold = 0.1;
+            
             composer = new EffectComposer(renderer);
             composer.addPass(renderScene);
             composer.addPass(bloomPass);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.enableZoom = true; // 允许用户自己微调
 
             loadModel();
 
@@ -137,41 +148,56 @@
             const targetPoints = [];
             const tempVec = new THREE.Vector3();
 
-            // 采样 & 放大
+            // 1. 获取所有点
             for(let i=0; i<count; i++) {
                 tempVec.fromBufferAttribute(posAttr, i);
-                
-                // 核心修改：放大模型尺寸
-                tempVec.multiplyScalar(CONFIG.scaleFactor);
-                // 调整位置居中
-                tempVec.y -= 25; 
-
                 targetPoints.push(tempVec.clone());
             }
 
-            // 截取点位，确保性能
-            // 随机打乱数组，让粒子分布更均匀
-            targetPoints.sort(() => Math.random() - 0.5);
-            const finalPoints = targetPoints.slice(0, CONFIG.particleCount);
+            // 2. 计算包围盒 (Bounding Box)
+            // 这就是解决“太大”或“太小”的关键
+            const box = new THREE.Box3().setFromPoints(targetPoints);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            modelCenter.copy(center);
 
-            const geom = new THREE.BoxGeometry(0.8, 0.8, 0.8); // 粒子本身也变大
+            // 3. 将所有点归一化并移动到原点中心
+            // 我们不依赖模型的原始坐标，而是手动把它们居中
+            targetPoints.forEach(p => {
+                p.sub(center); // 居中
+            });
+
+            // 4. 计算最佳相机距离 (Fit to Screen)
+            // 根据 FOV 和 模型最大边长，反推相机 z 轴
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+            let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+            cameraZ *= 1.2; // 乘以 1.2 留出 20% 的边距 (Padding)
+
+            // 移动相机到最佳位置
+            gsap.to(camera.position, { z: cameraZ, duration: 2, ease: "power2.out" });
+            controls.target.set(0, 0, 0); // 确然看的是中心
+
+            // 5. 生成粒子
+            const shuffledPoints = targetPoints.sort(() => Math.random() - 0.5).slice(0, CONFIG.particleCount);
+            const geom = new THREE.BoxGeometry(0.5, 0.5, 0.5); // 稍微细腻一点的粒子
             const materials = CONFIG.colors.map(c => new THREE.MeshBasicMaterial({ color: c }));
 
-            finalPoints.forEach((pt, i) => {
+            shuffledPoints.forEach(pt => {
                 const mat = materials[Math.floor(Math.random() * materials.length)];
                 const pMesh = new THREE.Mesh(geom, mat);
                 
-                // 散开位置：给每个粒子一个随机的“家”
+                // 散开范围根据模型本身大小来定，而不是写死
+                const scatterRange = maxDim * 2; 
                 const scatterPos = new THREE.Vector3(
-                    (Math.random()-0.5) * 120,
-                    (Math.random()-0.5) * 80,
-                    (Math.random()-0.5) * 50
+                    (Math.random()-0.5) * scatterRange,
+                    (Math.random()-0.5) * scatterRange,
+                    (Math.random()-0.5) * scatterRange
                 );
 
-                // 给每个粒子分配一个随机的漂浮参数，让它们动起来不一样
                 pMesh.userData = {
                     randomOffset: Math.random() * 100,
-                    speed: 0.02 + Math.random() * 0.03
+                    speed: 0.01 + Math.random() * 0.02
                 };
 
                 pMesh.position.copy(scatterPos);
@@ -184,7 +210,6 @@
                 });
             });
             
-            // 初始状态
             updateState('DISPERSED');
         }
 
@@ -195,37 +220,35 @@
             const statusEl = document.getElementById('status-text');
 
             if (state === 'CONVERGED') {
-                statusEl.innerText = "状态: ✊ 战马形态";
+                statusEl.innerText = "状态: 聚合";
                 statusEl.style.color = "#FFD700";
 
-                // 马形态：迅速归位
                 particles.forEach(p => {
                     gsap.to(p.mesh.position, {
                         x: p.targetPos.x,
                         y: p.targetPos.y,
                         z: p.targetPos.z,
-                        duration: 1.0,
-                        ease: "back.out(1.2)" // 带有弹性的动作
+                        duration: 1.8, // 稍微慢一点，更优雅
+                        ease: "power3.inOut" // 更平滑的加减速
                     });
-                    gsap.to(p.mesh.rotation, { x: 0, y: 0, z: 0, duration: 1});
+                    // 聚合时粒子稍微变小一点，显得精致
+                    gsap.to(p.mesh.scale, { x: 1, y: 1, z: 1, duration: 1.5 });
                 });
-                
-                // 马形态下，模型自动旋转展示
-                gsap.to(group.rotation, { x: 0, z: 0, duration: 1 });
 
             } else if (state === 'DISPERSED') {
-                statusEl.innerText = "状态: 🖐 灵能星云 (跟随手势)";
+                statusEl.innerText = "状态: 散开 (手势控制)";
                 statusEl.style.color = "#00ffff";
 
-                // 散开态：飞回随机位置
                 particles.forEach(p => {
                     gsap.to(p.mesh.position, {
                         x: p.scatterPos.x,
                         y: p.scatterPos.y,
                         z: p.scatterPos.z,
-                        duration: 1.5,
+                        duration: 2.0,
                         ease: "power2.out"
                     });
+                    // 散开时粒子变大，更有氛围感
+                    gsap.to(p.mesh.scale, { x: 2, y: 2, z: 2, duration: 1.5 });
                 });
             }
         }
@@ -236,43 +259,37 @@
             
             if (!group) return;
 
+            // 1. 整体呼吸感 (Breath)
+            // 无论什么状态，整体都有一种极缓慢的上下浮动，打破死板
+            group.position.y = Math.sin(time * 0.5) * 2; 
+
             if (state === 'DISPERSED') {
-                // --- 1. 粒子活性化 (让粒子即使不动手也在游动) ---
+                // 散开态：粒子游动
                 particles.forEach(p => {
                     const offset = p.mesh.userData.randomOffset;
-                    const speed = p.mesh.userData.speed;
-                    // 在散开位置的基础上由于正弦波进行微调
-                    // 我们只在渲染层修改位置，不改变scatterPos数据
-                    // 这里直接操作mesh位置不太好，因为GSAP在控制它。
-                    // 更好的做法是：GSAP控制容器，我们微调容器？或者只在GSAP动画结束后微调。
-                    // 为了简单有效，我们叠加一个微小的偏移量给 group 或者单独计算
-                    
-                    // 简单方案：如果动画没在跑，就加一点噪音
-                    if(!gsap.isTweening(p.mesh.position)) {
-                         p.mesh.position.y += Math.sin(time * speed + offset) * 0.05;
-                         p.mesh.position.x += Math.cos(time * speed + offset) * 0.05;
-                    }
+                    // 使用噪点式的移动，不仅仅是上下
+                    p.mesh.position.x += Math.cos(time + offset) * 0.05;
+                    p.mesh.position.y += Math.sin(time + offset) * 0.05;
+                    p.mesh.position.z += Math.sin(time * 0.5 + offset) * 0.05;
                 });
 
-                // --- 2. 手势跟随 (核心逻辑) ---
-                // 计算目标旋转角度：手在左边，马往左转；手在上面，马往上看
-                // handPosition.x: 0(左) -> 1(右)
-                // handPosition.y: 0(上) -> 1(下)
-                
-                // 目标 Y 轴旋转 (左右): -1 到 1 弧度
-                const targetRotY = (handPosition.x - 0.5) * 3; 
-                // 目标 X 轴旋转 (上下): -0.5 到 0.5 弧度
-                const targetRotX = (handPosition.y - 0.5) * 1.5;
+                // 手势柔和跟随
+                const targetRotY = (handPosition.x - 0.5) * 2; 
+                const targetRotX = (handPosition.y - 0.5) * 1;
 
-                // 使用 lerp 平滑过渡，避免抖动
-                group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, targetRotY, 0.05);
-                group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, targetRotX, 0.05);
+                // 阻尼更大(0.03)，惯性更强，感觉更重、更高级
+                group.rotation.y += (targetRotY - group.rotation.y) * 0.03;
+                group.rotation.x += (targetRotX - group.rotation.x) * 0.03;
 
             } else {
-                // 聚合态：自动慢慢旋转展示
-                group.rotation.y += 0.005;
+                // 聚合态：非常缓慢的自转展示
+                group.rotation.y += 0.002;
+                // 也要响应一点点手势，但很微弱
+                const targetRotX = (handPosition.y - 0.5) * 0.5;
+                group.rotation.x += (targetRotX - group.rotation.x) * 0.05;
             }
 
+            controls.update();
             composer.render();
         }
 
@@ -286,19 +303,13 @@
                 
                 const lm = results.multiHandLandmarks[0];
                 
-                // 1. 更新手掌中心位置 (用于控制方向)
-                // 取 0(手腕) 和 9(中指根部) 的中间点作为手掌中心，比单纯取某个点更稳
+                // 更新手势位置
                 const palmX = (lm[0].x + lm[9].x) / 2;
                 const palmY = (lm[0].y + lm[9].y) / 2;
-                
-                // MediaPipe 的 x 坐标也是反的(因为我们镜像了视频)，所以可能需要反转
-                // 但我们在CSS里 transform: scaleX(-1) 只是视觉镜像，数据可能是原始的
-                // 通常 MediaPipe 输出：x=0 是画面左边。
-                // 我们直接映射给 handPosition
-                handPosition.x = 1 - palmX; // 反转一下符合直觉（手往右移，画面往右转）
+                handPosition.x = 1 - palmX; 
                 handPosition.y = palmY;
 
-                // 2. 状态判定 (张开 vs 握拳)
+                // 状态判定
                 const tips = [8, 12, 16, 20];
                 const bases = [5, 9, 13, 17];
                 let openCount = 0;
@@ -308,7 +319,7 @@
 
                 if (openCount >= 3) {
                     updateState('DISPERSED');
-                } else if (openCount <= 1) { // 严格一点，只剩一个手指或全握
+                } else if (openCount <= 1) {
                     updateState('CONVERGED');
                 }
             });
