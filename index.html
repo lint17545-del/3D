@@ -1,25 +1,45 @@
+
 <!DOCTYPE html>
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>SPIC V13 - Native Smooth Interaction</title>
+    <title>SPIC V14 - High Energy Edition</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #010103; font-family: 'Microsoft YaHei', sans-serif; }
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Microsoft YaHei', sans-serif; }
         
-        #video-element { position: absolute; top: 20px; left: 20px; width: 160px; height: 120px; z-index: 2; transform: scaleX(-1); border: 2px solid rgba(255, 215, 0, 0.4); border-radius: 8px; opacity: 0.6; }
+        /* 视频反馈：缩小并放在底部，不干扰视觉 */
+        #video-element { position: absolute; bottom: 20px; left: 20px; width: 120px; height: 90px; z-index: 2; transform: scaleX(-1); border: 1px solid #333; border-radius: 4px; opacity: 0.3; pointer-events: none; }
         
-        #ui-layer { position: absolute; top: 20px; right: 20px; z-index: 10; color: #fff; text-align: right; pointer-events: none; user-select: none; }
-        h1 { margin: 0; font-size: 26px; color: #FFD700; letter-spacing: 2px; text-shadow: 0 0 15px rgba(255, 69, 0, 0.6); }
-        .cycle-info { font-size: 22px; margin-top: 10px; color: #fff; font-weight: bold; transition: color 0.5s; text-shadow: 0 0 10px currentColor; }
-        .status { font-size: 16px; color: rgba(255,255,255,0.8); margin-top: 8px; background: rgba(0,0,0,0.6); padding: 4px 12px; border-radius: 20px; display: inline-block;}
+        #ui-layer { position: absolute; top: 30px; width: 100%; text-align: center; z-index: 10; pointer-events: none; }
+        h1 { margin: 0; font-size: 32px; color: #fff; letter-spacing: 8px; font-weight: 100; text-shadow: 0 0 20px rgba(0,191,255,0.8); }
+        .subtitle { font-size: 14px; color: #88ccff; letter-spacing: 4px; margin-top: 5px; opacity: 0.8; }
         
-        #upload-container { pointer-events: auto; display: inline-block; margin-top: 25px; }
+        /* 状态指示器 */
+        #status-bar { 
+            position: absolute; top: 100px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.6); padding: 8px 20px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1);
+            color: #FFD700; font-size: 14px; letter-spacing: 1px; transition: all 0.3s;
+        }
+
+        #upload-btn {
+            position: absolute; right: 30px; top: 30px; pointer-events: auto;
+            background: transparent; border: 1px solid #00ffff; color: #00ffff;
+            padding: 10px 20px; border-radius: 4px; cursor: pointer;
+            font-size: 12px; transition: all 0.3s; text-transform: uppercase;
+        }
+        #upload-btn:hover { background: #00ffff; color: #000; box-shadow: 0 0 15px #00ffff; }
         input[type="file"] { display: none; }
-        .btn { background: linear-gradient(135deg, #FFD700, #FF4500); border: none; padding: 10px 25px; color: #fff; font-size: 14px; font-weight: bold; cursor: pointer; border-radius: 30px; box-shadow: 0 0 20px rgba(255, 69, 0, 0.3); }
-        .btn:hover { transform: scale(1.05); background: linear-gradient(135deg, #FFD700, #FF0000); }
+
+        #hint { position: absolute; bottom: 30px; width: 100%; text-align: center; color: rgba(255,255,255,0.3); font-size: 12px; letter-spacing: 2px; }
         
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #FFD700; z-index: 20; font-size: 18px; text-align: center; }
-        #hint { position: absolute; bottom: 30px; width: 100%; text-align: center; color: rgba(255,255,255,0.4); font-size: 13px; pointer-events: none; }
+        /* 准星 (辅助瞄准) */
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px;
+            transform: translate(-50%, -50%); pointer-events: none;
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 50%;
+            transition: all 0.2s;
+        }
+        #crosshair.locked { border-color: #00ff00; border-width: 2px; transform: translate(-50%, -50%) scale(1.5); box-shadow: 0 0 10px #00ff00; }
     </style>
     
     <script type="importmap">
@@ -31,20 +51,23 @@
 </head>
 <body>
 
-    <div id="loading">正在复刻交互内核...<br>生成 SPIC 工业场景</div>
-
     <div id="ui-layer">
-        <h1>SPIC 能源视界 V13</h1>
-        <div class="cycle-info" id="shape-name" style="color:#FFD700">🐎 战马形态</div>
-        <div class="status" id="gesture-status">等待摄像头...</div>
-        <div id="upload-container">
-            <label class="btn">+ 注入照片 <input type="file" id="file-input" multiple accept="image/*"></label>
-        </div>
+        <h1 id="title-text">SPIC 粒子光场</h1>
+        <div class="subtitle" id="sub-text">IMMERSIVE DATA VISUALIZATION</div>
     </div>
-    <div id="hint">✊握拳:聚合 | 🖐张开:散开/释放 | 👌捏合:磁吸抓取</div>
+    <div id="status-bar">系统初始化中...</div>
+    
+    <label id="upload-btn">
+        + 上传照片 (Gallery)
+        <input type="file" id="file-input" multiple accept="image/*">
+    </label>
+
+    <div id="crosshair"></div>
+    <div id="hint">✊握拳: 形态聚合 | 🖐张开: 环形画廊 | 👌捏合: 磁吸抓取</div>
     
     <video id="video-element" playsinline></video>
     <div id="canvas-container"></div>
+    
     <canvas id="genCanvas" width="2048" height="1024" style="display:none;"></canvas>
 
     <script type="module">
@@ -54,400 +77,547 @@
         import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 
-        // --- 配置 ---
+        // --- 高级配置 ---
         const CONFIG = {
-            particleCount: 16000,
-            cameraZ: 400, // 适应大场景
+            particleCount: 18000, // 极限粒子数
+            particleSize: 1.8,    // 粒子调大
+            maxPhotos: 40,
+            camZ: 350,
             colors: {
-                horse: [0xD4AF37, 0xC41E3A, 0xFFD700, 0x8B0000],
-                text: [0x88CCFF],
-                towerTop: new THREE.Color(0x87CEEB), towerBottom: new THREE.Color(0x228B22),
-                wind: 0x00FF7F, solar: 0xFFA500
+                horse: new THREE.Color(0xFF4500), // 炽热红
+                gold: new THREE.Color(0xFFD700),  // 金
+                text: new THREE.Color(0x00FFFF),  // 青色
+                towerBottom: new THREE.Color(0x2E8B57), // 海洋绿
+                towerTop: new THREE.Color(0x87CEFA)     // 天空蓝
             }
         };
 
-        // --- 核心状态 ---
-        const STATE = { 
-            mode: 'CONVERGED', // CONVERGED (聚合), SCATTER (散开), ZOOM (抓取)
-            handVisible: false, 
-            handX: 0.5, handY: 0.5, 
-            gesture: 'NONE',
-            shapeIndex: 0 // 0:Horse, 1:Text, 2:Tower, 3:WindSolar
-        };
-
+        // --- 全局变量 ---
         let scene, camera, renderer, composer;
-        let particlesData = []; // { mesh, cur, targets: [], speed }
-        let photosData = [];    // { mesh, cur, home, scatter, focus, velocity }
-        let mainGroup, photoGroup;
-        
-        // 你的防晕相机变量
-        let lookAtTarget = new THREE.Vector3(0, 0, 0);
-        let currentLookAt = new THREE.Vector3(0, 0, 0);
+        let particleSystem, particleGeo, particleMat; // 粒子系统核心
+        let photoGroup, photosData = [];
         let raycaster = new THREE.Raycaster();
         
-        // 形状数据缓存
-        const SHAPES = { HORSE:[], TEXT:[], TOWER:[], WIND_SOLAR:[] };
+        // 状态机
+        const STATE = {
+            mode: 'SCATTER', // SCATTER (画廊), MORPH (形态), ZOOM (抓取)
+            shapeIdx: 0,     // 0:Horse, 1:Text, 2:Tower, 3:Scene
+            handVisible: false,
+            handX: 0.5, handY: 0.5,
+            targetLookAt: new THREE.Vector3(0,0,0),
+            curLookAt: new THREE.Vector3(0,0,0)
+        };
+        
+        // 数据缓存
+        const POSITIONS = { HORSE:[], TEXT:[], TOWER:[], SCENE:[] };
+        let currentPositions = []; // 当前形态的目标位置数组
 
-        initThree();
-        initMediaPipe();
+        // 交互变量
+        let hoveredPhoto = null;
+        let grabbedPhoto = null;
 
-        async function initThree() {
-            const container = document.getElementById('canvas-container');
-            
+        init();
+
+        async function init() {
             // 1. 场景
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x010103, 0.0008);
+            scene.fog = new THREE.FogExp2(0x000000, 0.001);
 
-            // 2. 相机 (沿用你的逻辑)
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 5000);
-            camera.position.set(0, 0, CONFIG.cameraZ);
+            // 2. 相机
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 4000);
+            camera.position.set(0, 0, CONFIG.camZ);
 
             // 3. 渲染器
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false }); // 关闭抗锯齿以换取性能
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-            renderer.toneMapping = THREE.ACESFilmicToneMapping; // 增加电影感
-            renderer.toneMappingExposure = 1.2;
-            container.appendChild(renderer.domElement);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-            // 4. 灯光
-            scene.add(new THREE.AmbientLight(0xffffff, 0.3));
-            const sun = new THREE.DirectionalLight(0xFFD700, 1.5); sun.position.set(100, 100, 100); scene.add(sun);
-            const blue = new THREE.PointLight(0x0088FF, 2, 600); blue.position.set(-100, 0, 100); scene.add(blue);
-
-            // 5. 后处理 (Bloom)
-            const renderScene = new RenderPass(scene, camera);
+            // 4. 后处理 (Bloom是"亮"的关键)
+            const renderPass = new RenderPass(scene, camera);
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            bloomPass.threshold = 0.1; bloomPass.strength = 1.0; bloomPass.radius = 0.5;
+            bloomPass.threshold = 0.15; 
+            bloomPass.strength = 1.2;  // 强度
+            bloomPass.radius = 0.5;
             composer = new EffectComposer(renderer);
-            composer.addPass(renderScene);
+            composer.addPass(renderPass);
             composer.addPass(bloomPass);
 
-            // 6. 分组
-            mainGroup = new THREE.Group();
+            // 5. 生成光晕贴图 (这是粒子"发光"的秘密)
+            const glowTexture = createGlowTexture();
+
+            // 6. 粒子系统 (使用 Points + Shader/Map)
+            particleGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(CONFIG.particleCount * 3);
+            const colors = new Float32Array(CONFIG.particleCount * 3);
+            const sizes = new Float32Array(CONFIG.particleCount);
+            
+            // 初始化位置和随机属性
+            for(let i=0; i<CONFIG.particleCount; i++) {
+                positions[i*3] = (Math.random()-0.5)*1000;
+                positions[i*3+1] = (Math.random()-0.5)*1000;
+                positions[i*3+2] = (Math.random()-0.5)*1000;
+                
+                colors[i*3] = 1; colors[i*3+1] = 0.8; colors[i*3+2] = 0.2;
+                sizes[i] = Math.random();
+            }
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            particleGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+            // 关键材质：AdditiveBlending (叠加模式)
+            particleMat = new THREE.PointsMaterial({
+                size: CONFIG.particleSize,
+                map: glowTexture,
+                vertexColors: true,
+                blending: THREE.AdditiveBlending, // 核心：光叠加
+                depthWrite: false,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            particleSystem = new THREE.Points(particleGeo, particleMat);
+            scene.add(particleSystem);
+
+            // 7. 照片组
             photoGroup = new THREE.Group();
-            scene.add(mainGroup);
             scene.add(photoGroup);
 
-            // 7. 生成内容 (核心逻辑移入)
-            await generateAllShapes();
-            createParticles();
+            // 8. 生成所有形态数据
+            updateStatus("正在计算光场数据...");
+            await generateShapes();
+            
+            // 默认切到散开模式
+            switchToMode('SCATTER');
+            updateStatus("系统就绪 | 等待手势");
 
-            // 8. 事件
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight); composer.setSize(window.innerWidth, window.innerHeight);
-            });
-            document.getElementById('file-input').addEventListener('change', handleImageUpload);
-            document.getElementById('loading').style.display = 'none';
+            // 9. 事件监听
+            window.addEventListener('resize', onResize);
+            document.getElementById('file-input').addEventListener('change', handleUpload);
+            
+            // 10. 启动 AI
+            initMediaPipe();
             
             animate();
         }
 
-        // --- 形态生成逻辑 (V12 Procedural + Horse Fallback) ---
-        async function generateAllShapes() {
+        // --- 形态生成器 ---
+
+        async function generateShapes() {
             // A. 马 (尝试加载)
             try {
                 await new Promise((resolve, reject) => {
                     const loader = new GLTFLoader();
-                    const t = setTimeout(() => reject("timeout"), 4000);
+                    // 3秒超时，超时直接用备用方案
+                    const t = setTimeout(() => reject("timeout"), 3000); 
                     loader.load('https://threejs.org/examples/models/gltf/Horse.glb', (gltf) => {
                         clearTimeout(t);
-                        SHAPES.HORSE = samplePoints(getPointsFromMesh(gltf.scene.children[0], 1.4), CONFIG.particleCount);
+                        POSITIONS.HORSE = sampleMesh(gltf.scene.children[0], 1.5);
                         resolve();
                     }, undefined, reject);
                 });
             } catch(e) {
-                console.warn("Using fallback horse");
-                SHAPES.HORSE = generateSphereFallback(CONFIG.particleCount);
+                // 备用方案：生成一个燃烧的球体
+                POSITIONS.HORSE = createSphereCloud(120);
             }
+
             // B. 文字
-            SHAPES.TEXT = generateTextPoints("风光无限  国家电投");
-            // C. 凉水塔 (双曲线)
-            SHAPES.TOWER = generateProceduralTower(CONFIG.particleCount);
-            // D. 风光互补
-            SHAPES.WIND_SOLAR = generateProceduralWindSolar(CONFIG.particleCount);
+            POSITIONS.TEXT = createText("风光无限  国家电投");
+
+            // C. 凉水塔 (体积云重构版)
+            POSITIONS.TOWER = createVolumetricTower();
+
+            // D. 风光互补 (点阵版)
+            POSITIONS.SCENE = createIndustrialScene();
         }
 
-        // (复用之前的生成函数，确保 0 延迟)
-        function generateProceduralTower(count) {
-            const pts=[]; const h=300;
-            for(let i=0; i<count; i++) {
-                const y=(Math.random()-0.5)*h; const v=y/(h/2);
-                let r=60 * Math.sqrt(1 + Math.pow(v,2)*0.5); if(v<0) r*=(1+Math.abs(v)*0.4);
-                const ang=Math.random()*Math.PI*2;
-                const p=new THREE.Vector3(r*Math.cos(ang), y, r*Math.sin(ang));
-                p.ratio = (y+h/2)/h; pts.push(p);
-            }
-            return samplePoints(pts, count);
-        }
-
-        function generateProceduralWindSolar(count) {
-            const pts=[];
-            const addCyl = (x,z,r,h,isW) => { for(let i=0;i<h*2;i++){ const py=(Math.random()-0.5)*h; const a=Math.random()*6.28; const cr=r*(1-(py+h/2)/h*0.4); pts.push({pos:new THREE.Vector3(x+Math.cos(a)*cr,py,z+Math.sin(a)*cr),isW});}};
-            const addBld = (x,y,z,sz) => { for(let k=0;k<3;k++){ for(let i=0;i<300;i++){ const l=Math.random()*sz; const a=(k/3)*6.28; pts.push({pos:new THREE.Vector3(x+Math.cos(a)*l,y+Math.sin(a)*l,z+(Math.random()-0.5)*5),isW:true});}}};
-            const addPnl = (x,y,z,w,h) => { for(let i=0;i<60;i++){ const px=(Math.random()-0.5)*w; const pz=(Math.random()-0.5)*h; pts.push({pos:new THREE.Vector3(x+px, y+pz*0.5, z+pz*0.866),isS:true});}};
-            
-            addCyl(-120,-50,8,200,true); addBld(-120,100,-45,110);
-            addCyl(100,80,5,150,true); addBld(100,75,85,80);
-            for(let r=0;r<4;r++) for(let c=0;c<6;c++) addPnl((c-3)*50, -120, (r-2)*40+50, 40, 25);
-            return samplePoints(pts.map(p=>{let v=p.pos;v.isW=p.isW;v.isS=p.isS;return v;}), count);
-        }
-
-        function generateTextPoints(t){
-            const c=document.getElementById('genCanvas').getContext('2d'); c.clearRect(0,0,2048,1024);
-            c.font="bold 200px 'Microsoft YaHei'"; c.fillStyle="white"; c.textAlign="center"; c.textBaseline="middle"; c.fillText(t,1024,512);
-            const d=c.getImageData(0,0,2048,1024).data; const p=[];
-            for(let y=0;y<1024;y+=6)for(let x=0;x<2048;x+=6)if(d[(y*2048+x)*4+3]>128)p.push(new THREE.Vector3((x-1024)*0.3,-(y-512)*0.3,(Math.random()-0.5)*15));
-            return samplePoints(p, CONFIG.particleCount);
-        }
-        function generateSphereFallback(c){const p=[];for(let i=0;i<c;i++)p.push(new THREE.Vector3((Math.random()-0.5)*200,(Math.random()-0.5)*200,(Math.random()-0.5)*200));return p;}
-        function getPointsFromMesh(m,s){const p=[];const a=m.geometry.attributes.position;const v=new THREE.Vector3();for(let i=0;i<a.count;i++)p.push(v.fromBufferAttribute(a,i).multiplyScalar(s).clone());return p;}
-        function samplePoints(s,c){if(!s.length)return[];const b=new THREE.Box3().setFromPoints(s);const ct=b.getCenter(new THREE.Vector3());s.forEach(p=>p.sub(ct));const r=[];for(let i=0;i<c;i++){const p=s[i%s.length].clone(); Object.assign(p,s[i%s.length]); r.push(p);}return r.sort(()=>Math.random()-0.5);}
-
-        // --- 粒子系统 ---
-        function createParticles() {
-            const geom = new THREE.SphereGeometry(0.5, 6, 6);
+        // 核心：网格表面采样
+        function sampleMesh(mesh, scale) {
+            const arr = [];
+            const posAttr = mesh.geometry.attributes.position;
+            const temp = new THREE.Vector3();
+            // 简单随机采样
             for(let i=0; i<CONFIG.particleCount; i++) {
-                const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-                const mesh = new THREE.Mesh(geom, mat);
-                const scatter = new THREE.Vector3((Math.random()-0.5)*1000, (Math.random()-0.5)*800, (Math.random()-0.5)*1000);
-                mesh.position.copy(scatter);
-                mainGroup.add(mesh);
+                const idx = Math.floor(Math.random() * posAttr.count);
+                temp.fromBufferAttribute(posAttr, idx).multiplyScalar(scale);
+                // 加一点噪点，让它看起来更像火焰
+                temp.x += (Math.random()-0.5)*2;
+                temp.y += (Math.random()-0.5)*2;
+                temp.z += (Math.random()-0.5)*2;
+                arr.push(temp.x, temp.y, temp.z);
+            }
+            return arr;
+        }
+
+        // 凉水塔：螺旋噪点构建 (告别PPT感)
+        function createVolumetricTower() {
+            const arr = [];
+            const h = 320;
+            for(let i=0; i<CONFIG.particleCount; i++) {
+                const pct = i / CONFIG.particleCount; // 0-1
+                // 螺旋上升
+                const y = (pct - 0.5) * h;
+                const v = (y + h/2) / h; // 0-1 高度比
                 
-                particlesData.push({
-                    mesh: mesh,
-                    cur: scatter.clone(),
-                    targets: [SHAPES.HORSE[i], SHAPES.TEXT[i], SHAPES.TOWER[i], SHAPES.WIND_SOLAR[i]],
-                    scat: scatter,
-                    speed: 0.01 + Math.random() * 0.04 // 你的原生手感核心：随机速度 Lerp
+                // 双曲线半径
+                let r = 70 * Math.sqrt(1 + Math.pow(v*2 - 1, 2) * 0.8);
+                if(v < 0.1) r *= 1.2; // 底部扩宽
+
+                // 螺旋角 + 随机偏移 (形成体积感)
+                const angle = pct * Math.PI * 80 + Math.random()*Math.PI*2; 
+                // 厚度
+                const thickness = 5 + Math.random() * 10;
+                const finalR = r + (Math.random()-0.5) * thickness;
+
+                const x = Math.cos(angle) * finalR;
+                const z = Math.sin(angle) * finalR;
+
+                arr.push(x, y, z);
+            }
+            return arr;
+        }
+
+        // 工业场景：几何构建
+        function createIndustrialScene() {
+            const arr = [];
+            // 风机函数
+            const addWind = (ox, oz, s) => {
+                const h = 220*s; 
+                for(let i=0; i<2000; i++) {
+                    const y = (Math.random()-0.5)*h;
+                    const r = 6 * s * (1 - (y+h/2)/h * 0.5);
+                    const a = Math.random()*6.28;
+                    arr.push(ox + Math.cos(a)*r, y, oz + Math.sin(a)*r);
+                }
+                // 叶片
+                for(let k=0; k<3; k++) {
+                    const ba = k/3 * 6.28;
+                    for(let j=0; j<800; j++) {
+                        const l = Math.random() * 100 * s;
+                        arr.push(ox + Math.cos(ba)*l, h/2 + Math.sin(ba)*l, oz + (Math.random()-0.5)*5);
+                    }
+                }
+            };
+            addWind(-100, -50, 1);
+            addWind(100, 50, 0.7);
+
+            // 光伏板 (地面)
+            const remain = CONFIG.particleCount - arr.length/3;
+            for(let i=0; i<remain; i++) {
+                const row = Math.floor(Math.random()*5);
+                const col = Math.floor(Math.random()*10);
+                const x = (col - 5) * 40 + (Math.random()-0.5)*35;
+                const z = (row - 2) * 30 + 50 + (Math.random()-0.5)*20;
+                const y = -120 + (z-50)*0.2; // 倾斜
+                arr.push(x, y, z);
+            }
+            return arr;
+        }
+
+        function createText(txt) {
+            const ctx = document.getElementById('genCanvas').getContext('2d');
+            ctx.clearRect(0,0,2048,1024);
+            ctx.font = "bold 200px 'Microsoft YaHei'"; ctx.fillStyle = "#fff";
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(txt, 1024, 512);
+            const data = ctx.getImageData(0,0,2048,1024).data;
+            const validPixels = [];
+            for(let y=0;y<1024;y+=8) for(let x=0;x<2048;x+=8) if(data[(y*2048+x)*4+3]>100) validPixels.push({x,y});
+            
+            const arr = [];
+            for(let i=0; i<CONFIG.particleCount; i++) {
+                const p = validPixels[i % validPixels.length];
+                arr.push((p.x-1024)*0.35, -(p.y-512)*0.35, (Math.random()-0.5)*20);
+            }
+            return arr;
+        }
+        
+        function createSphereCloud(r) {
+            const arr = [];
+            for(let i=0; i<CONFIG.particleCount; i++) {
+                const u = Math.random(); const v = Math.random();
+                const theta = 2 * Math.PI * u;
+                const phi = Math.acos(2 * v - 1);
+                const x = r * Math.sin(phi) * Math.cos(theta);
+                const y = r * Math.sin(phi) * Math.sin(theta);
+                const z = r * Math.cos(phi);
+                arr.push(x, y, z);
+            }
+            return arr;
+        }
+
+        // --- 核心逻辑 ---
+
+        function switchToMode(mode) {
+            STATE.mode = mode;
+            const positions = particleGeo.attributes.position.array;
+            const colors = particleGeo.attributes.color.array;
+
+            if(mode === 'SCATTER') {
+                // 散开模式：环形画廊布局
+                // 粒子变为星空背景
+                for(let i=0; i<CONFIG.particleCount; i++) {
+                    currentPositions[i*3] = (Math.random()-0.5)*1200;
+                    currentPositions[i*3+1] = (Math.random()-0.5)*800;
+                    currentPositions[i*3+2] = (Math.random()-0.5)*1200;
+                }
+                updateStatus("🖐 画廊模式 | 自由视角");
+                
+                // 照片布局：圆柱形环绕
+                photosData.forEach((p, i) => {
+                    const angle = (i / photosData.length) * Math.PI * 2;
+                    const r = 250; // 半径
+                    p.targetPos.set(Math.cos(angle)*r, (Math.random()-0.5)*100, Math.sin(angle)*r);
+                    p.targetRot.setFromEuler(new THREE.Euler(0, -angle + Math.PI/2, 0)); // 面向圆心
+                    p.isActive = true;
+                });
+
+            } else if(mode === 'MORPH') {
+                // 形态切换
+                let targetArr, col1, col2;
+                const idx = STATE.shapeIndex;
+                if(idx===0) { targetArr=POSITIONS.HORSE; col1=CONFIG.colors.horse; col2=CONFIG.colors.gold; updateStatus("🐎 战马形态"); }
+                else if(idx===1) { targetArr=POSITIONS.TEXT; col1=CONFIG.colors.text; col2=new THREE.Color(0xffffff); updateStatus("💎 品牌愿景"); }
+                else if(idx===2) { targetArr=POSITIONS.TOWER; col1=CONFIG.colors.towerBottom; col2=CONFIG.colors.towerTop; updateStatus("🏭 绿色火电"); }
+                else { targetArr=POSITIONS.SCENE; col1=CONFIG.colors.wind; col2=CONFIG.colors.solar; updateStatus("⚡ 风光互补"); }
+
+                // 更新粒子目标位置和颜色
+                for(let i=0; i<CONFIG.particleCount; i++) {
+                    currentPositions[i*3] = targetArr[i*3] || 0;
+                    currentPositions[i*3+1] = targetArr[i*3+1] || 0;
+                    currentPositions[i*3+2] = targetArr[i*3+2] || 0;
+
+                    // 颜色渐变
+                    let c = (currentPositions[i*3+1] + 100) / 200; // 根据高度
+                    c = Math.max(0, Math.min(1, c));
+                    const finalC = col1.clone().lerp(col2, c);
+                    
+                    colors[i*3] = finalC.r; colors[i*3+1] = finalC.g; colors[i*3+2] = finalC.b;
+                }
+                particleGeo.attributes.color.needsUpdate = true;
+
+                // 照片退场
+                photosData.forEach(p => {
+                    p.targetPos.set(0, -1000, 0); // 藏到地底
+                    p.isActive = false;
                 });
             }
-            updateParticleColors(0);
         }
 
-        function updateParticleColors(idx) {
-            const ui = document.getElementById('shape-name');
-            let colors;
-            if(idx===0) { ui.innerText="🐎 战马形态 (红金)"; ui.style.color="#FFD700"; colors=CONFIG.colors.horse; }
-            else if(idx===1) { ui.innerText="💎 文字形态 (星光蓝)"; ui.style.color="#88CCFF"; colors=CONFIG.colors.text; }
-            else if(idx===2) { ui.innerText="🏭 凉水塔 (彩绘渐变)"; ui.style.color="#00BFFF"; colors=CONFIG.colors.towerBottom; }
-            else { ui.innerText="⚡ 风光互补 (绿色能源)"; ui.style.color="#00FF00"; colors=CONFIG.colors.wind; }
-
-            particlesData.forEach((d, i) => {
-                let hex;
-                if(idx===2) { // 凉水塔渐变
-                    const r = d.targets[2].ratio || 0.5;
-                    d.mesh.material.color.lerpColors(CONFIG.colors.towerBottom, CONFIG.colors.towerTop, r);
-                } else if(idx===3) { // 风光
-                    d.mesh.material.color.setHex(d.targets[3].isS ? CONFIG.colors.solar : CONFIG.colors.wind);
-                } else {
-                    d.mesh.material.color.setHex(colors[Math.floor(Math.random()*colors.length)]);
-                }
-            });
-        }
-
-        // --- 你的照片逻辑 (完美复刻) ---
-        function handleImageUpload(e) {
-            const files = e.target.files; if(!files.length) return;
-            // 清理旧照片
-            photosData.forEach(p => photoGroup.remove(p.mesh)); photosData = [];
-            
-            Array.from(files).forEach(f => {
-                const r = new FileReader();
-                r.onload = ev => { 
-                    const img = new Image(); img.src = ev.target.result; 
-                    img.onload = () => createPhoto(img); 
-                };
-                r.readAsDataURL(f);
-            });
-            document.getElementById('gesture-status').innerText = `Loaded ${files.length} photos`;
-        }
-
-        function createPhoto(img) {
-            const tex = new THREE.Texture(img); tex.needsUpdate=true; tex.colorSpace = THREE.SRGBColorSpace;
-            const aspect = img.width/img.height;
-            // 你的原版照片框逻辑
-            const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(10*aspect, 10), mat);
-            const frame = new THREE.Mesh(new THREE.BoxGeometry(10*aspect+0.5, 10.5, 0.2), new THREE.MeshStandardMaterial({color:0xffffff, roughness:0.4}));
-            mesh.position.z = 0.11; frame.add(mesh);
-
-            // 初始位置
-            const scatter = new THREE.Vector3((Math.random()-0.5)*900, (Math.random()-0.5)*700, (Math.random()-0.5)*900);
-            frame.position.copy(scatter);
-            
-            // 归位位置 (围绕中心)
-            const angle = Math.random() * Math.PI * 2;
-            const r = 180 + Math.random()*50;
-            const home = new THREE.Vector3(Math.cos(angle)*r, (Math.random()-0.5)*150, Math.sin(angle)*r);
-
-            photoGroup.add(frame);
-            photosData.push({
-                mesh: frame,
-                cur: scatter.clone(),
-                home: home,
-                scat: scatter,
-                focus: false // 是否被抓取
-            });
-        }
-
-        // --- 核心动画循环 (复刻你的 Lerp 逻辑) ---
+        // --- 动画循环 ---
         function animate() {
             requestAnimationFrame(animate);
-            const time = Date.now() * 0.0005;
 
-            // 1. 粒子运动
-            // 这里我们不使用 GSAP，而是用你喜欢的每帧 lerp，这样手感才“粘滞”
+            // 1. 粒子 Lerp (丝滑核心)
+            const positions = particleGeo.attributes.position.array;
+            const damp = 0.05; // 阻尼系数
+            
             for(let i=0; i<CONFIG.particleCount; i++) {
-                const d = particlesData[i];
-                let tgt;
-                if(STATE.mode === 'CONVERGED') tgt = d.targets[STATE.shapeIndex];
-                else tgt = d.scat;
-
-                // 散开时加点流动
-                if(STATE.mode !== 'CONVERGED') d.cur.y += Math.sin(time + i*0.1) * 0.05;
-
-                // 核心：Lerp
-                d.cur.lerp(tgt, d.speed);
-                d.mesh.position.copy(d.cur);
+                const ix = i*3, iy = i*3+1, iz = i*3+2;
+                // 插值移动
+                positions[ix] += (currentPositions[ix] - positions[ix]) * damp;
+                positions[iy] += (currentPositions[iy] - positions[iy]) * damp;
+                positions[iz] += (currentPositions[iz] - positions[iz]) * damp;
+                
+                // 散开时加点漂浮
+                if(STATE.mode === 'SCATTER') {
+                    positions[iy] += Math.sin(Date.now()*0.001 + i)*0.05;
+                }
+            }
+            particleGeo.attributes.position.needsUpdate = true;
+            
+            // 粒子整体旋转 (手势控制)
+            if(STATE.mode === 'MORPH') {
+                const targetRotY = (STATE.handX - 0.5) * 3;
+                const targetRotX = (STATE.handY - 0.5) * 2;
+                particleSystem.rotation.y += (targetRotY - particleSystem.rotation.y) * 0.05;
+                particleSystem.rotation.x += (targetRotX - particleSystem.rotation.x) * 0.05;
+            } else {
+                particleSystem.rotation.y += (0 - particleSystem.rotation.y) * 0.05;
+                particleSystem.rotation.x += (0 - particleSystem.rotation.x) * 0.05;
             }
 
-            // 2. 照片运动
-            photosData.forEach(p => {
-                let tgt;
-                let scale = 1;
-                
-                if(p.focus) {
-                    // 抓取状态：飞到相机正前方 20 单位处
-                    const v = new THREE.Vector3(0, 0, -20).applyQuaternion(camera.quaternion);
-                    tgt = camera.position.clone().add(v);
-                    p.mesh.lookAt(camera.position); // 强制对齐
-                    scale = 4.0; // 放大
-                } else {
-                    // 正常状态
-                    tgt = (STATE.mode === 'CONVERGED') ? p.home : p.scat;
-                    p.mesh.lookAt(camera.position); // 始终面向观众
-                }
+            // 2. 照片逻辑 (磁吸 + 抓取)
+            updatePhotos();
 
-                // 核心：Lerp
-                p.cur.lerp(tgt, 0.04); // 0.04 是你之前代码里的“软”系数
-                p.mesh.position.copy(p.cur);
-                p.mesh.scale.lerp(new THREE.Vector3(scale, scale, scale), 0.1);
-            });
-
-            // 3. 相机控制 (你的 Anti-Dizzy 逻辑)
+            // 3. 相机 (防晕)
             updateCamera();
 
             composer.render();
         }
 
-        function updateCamera() {
-            // 如果手势散开，手可以控制视角
-            if(STATE.mode === 'SCATTER' && STATE.handVisible) {
-                // 手往左移(x<0.5)，看向左边(x负值)
-                // 你的代码里是 (x-0.5)*100
-                lookAtTarget.x = (STATE.handX - 0.5) * 150; 
-                lookAtTarget.y = (0.5 - STATE.handY) * 100;
-                lookAtTarget.z = -50;
-            } else {
-                // 聚合态，回正
-                lookAtTarget.set(0, 0, 0);
-            }
-
-            // 平滑 LookAt，这才是防晕的关键
-            currentLookAt.lerp(lookAtTarget, 0.05);
-            camera.lookAt(currentLookAt);
-        }
-
-        // --- MediaPipe & 射线抓取 ---
-        function initMediaPipe() {
-            const v = document.getElementById('video-element');
-            const h = new Hands({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-            h.setOptions({maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6});
+        function updatePhotos() {
+            // 找出鼠标/准星射线方向
+            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
             
-            h.onResults(res => {
-                const st = document.getElementById('gesture-status');
-                if(res.multiHandLandmarks.length) {
-                    STATE.handVisible = true;
-                    const lm = res.multiHandLandmarks[0];
-                    // 平滑手势坐标
-                    STATE.handX = STATE.handX * 0.8 + (1 - lm[0].x) * 0.2;
-                    STATE.handY = STATE.handY * 0.8 + lm[0].y * 0.2;
+            let bestCandidate = null;
+            let minAngle = 0.25; // 吸附角度阈值 (约15度)
 
-                    const pinch = Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05;
-                    let open=0; [8,12,16,20].forEach((t,i)=>{if(lm[t].y < lm[5+i*4].y) open++});
-
-                    if(pinch) {
-                        STATE.gesture = 'PINCH';
-                        st.innerText = "👌 捏合抓取 (瞄准照片)";
-                        raycastGrab(); // 你的宽容抓取逻辑
-                    } else if(open >= 4) {
-                        STATE.gesture = 'OPEN';
-                        // 逻辑：如果是抓取中张开，则释放；否则切换到散开
-                        if(STATE.mode === 'ZOOM') {
-                            STATE.mode = 'SCATTER'; resetPhoto();
-                        } else if(STATE.mode !== 'SCATTER') {
-                            STATE.mode = 'SCATTER';
-                            // 散开时也顺便切换下一个形状，为下次聚合做准备
-                            STATE.shapeIndex = (STATE.shapeIndex + 1) % 4;
-                            updateParticleColors(STATE.shapeIndex);
-                        }
-                        st.innerText = "🖐 张开 (散开/释放)";
-                    } else if(open <= 1) {
-                        STATE.gesture = 'FIST';
-                        if(STATE.mode !== 'CONVERGED') {
-                            STATE.mode = 'CONVERGED'; resetPhoto();
-                        }
-                        st.innerText = "✊ 握拳 (聚合)";
-                    }
-                } else {
-                    STATE.handVisible = false;
-                    st.innerText = "等待手势...";
-                }
-            });
-            new Camera(v, {onFrame: async()=>{await h.send({image:v})}, width:320, height:240}).start();
-        }
-
-        // 你的宽容抓取逻辑 (Easy Grab)
-        function raycastGrab() {
-            if(STATE.mode === 'ZOOM' || photosData.length === 0) return;
-            
-            // 1. 尝试精准射线
-            raycaster.setFromCamera(new THREE.Vector2(0,0), camera); // 永远从屏幕中心射出
-            const intersects = raycaster.intersectObjects(photoGroup.children, true);
-            if(intersects.length > 0) {
-                activatePhoto(intersects[0].object.parent || intersects[0].object);
-                return;
-            }
-
-            // 2. 尝试模糊吸附 (你的逻辑)
-            let closest = null; let minAngle = Infinity;
-            const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
-            
             photosData.forEach(p => {
-                const toPhoto = p.mesh.position.clone().sub(camera.position).normalize();
-                const angle = camDir.angleTo(toPhoto);
-                // 只要在视线夹角 0.3 弧度(约17度)内，就算瞄准了
-                if(angle < 0.3 && angle < minAngle) {
-                    minAngle = angle; closest = p;
+                // 基础移动 Lerp
+                p.mesh.position.lerp(p.targetPos, 0.08);
+                
+                if(p === grabbedPhoto) {
+                    // 被抓取：飞到面前
+                    const target = camera.position.clone().add(new THREE.Vector3(0,0,-15).applyQuaternion(camera.quaternion));
+                    p.targetPos.copy(target);
+                    p.mesh.lookAt(camera.position);
+                    p.mesh.scale.lerp(new THREE.Vector3(1.5, 1.5, 1.5), 0.1);
+                } else if(STATE.mode === 'SCATTER' && p.isActive) {
+                    // 画廊模式：检测吸附
+                    // 计算照片方向向量
+                    const dir = p.mesh.position.clone().sub(camera.position).normalize();
+                    const angle = raycaster.ray.direction.angleTo(dir);
+                    
+                    if(angle < minAngle) {
+                        minAngle = angle;
+                        bestCandidate = p;
+                    }
+
+                    // 默认朝向
+                    p.mesh.scale.lerp(new THREE.Vector3(0.5, 0.5, 0.5), 0.1);
+                    // 稍微旋转一点面向相机，但保留部分原始排列角度
+                    p.mesh.quaternion.slerp(camera.quaternion, 0.1);
+                }
+            });
+
+            // 处理高亮
+            const crosshair = document.getElementById('crosshair');
+            if(bestCandidate && !grabbedPhoto) {
+                hoveredPhoto = bestCandidate;
+                hoveredPhoto.mesh.scale.lerp(new THREE.Vector3(0.8, 0.8, 0.8), 0.2); // 悬停放大
+                crosshair.classList.add('locked');
+            } else {
+                hoveredPhoto = null;
+                crosshair.classList.remove('locked');
+            }
+        }
+
+        function updateCamera() {
+            // 在散开模式下，手势控制视角朝向
+            if(STATE.mode === 'SCATTER' && STATE.handVisible) {
+                // 映射手势位置到 LookAt 坐标
+                // 手左移 -> 看左边
+                STATE.targetLookAt.x = (STATE.handX - 0.5) * 300; 
+                STATE.targetLookAt.y = (0.5 - STATE.handY) * 200;
+            } else {
+                STATE.targetLookAt.set(0,0,0);
+            }
+            
+            // 平滑 LookAt
+            STATE.curLookAt.lerp(STATE.targetLookAt, 0.05);
+            camera.lookAt(STATE.curLookAt);
+        }
+
+        // --- 辅助工具 ---
+        function createGlowTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            const grd = ctx.createRadialGradient(16,16,0, 16,16,16);
+            grd.addColorStop(0, 'rgba(255,255,255,1)');
+            grd.addColorStop(0.4, 'rgba(255,255,255,0.5)');
+            grd.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grd;
+            ctx.fillRect(0,0,32,32);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            return tex;
+        }
+
+        function handleUpload(e) {
+            const files = e.target.files;
+            if(!files.length) return;
+            // 清理
+            photosData.forEach(p => photoGroup.remove(p.mesh));
+            photosData = [];
+            
+            Array.from(files).forEach((f, i) => {
+                const r = new FileReader();
+                r.onload = ev => {
+                    const img = new Image(); img.src = ev.target.result;
+                    img.onload = () => {
+                        const tex = new THREE.Texture(img); tex.needsUpdate=true; tex.colorSpace = THREE.SRGBColorSpace;
+                        const ratio = img.width / img.height;
+                        const geo = new THREE.PlaneGeometry(10*ratio, 10);
+                        const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+                        const mesh = new THREE.Mesh(geo, mat);
+                        
+                        // 边框
+                        const border = new THREE.Mesh(new THREE.PlaneGeometry(10*ratio+0.5, 10.5), new THREE.MeshBasicMaterial({color:0xffffff}));
+                        border.position.z = -0.1;
+                        mesh.add(border);
+
+                        photoGroup.add(mesh);
+                        photosData.push({
+                            mesh: mesh,
+                            targetPos: new THREE.Vector3(0,-1000,0), // 初始隐藏
+                            targetRot: new THREE.Euler(),
+                            isActive: false
+                        });
+                    }
+                }
+                r.readAsDataURL(f);
+            });
+            updateStatus(`已加载 ${files.length} 张照片`);
+        }
+        
+        function updateStatus(text) {
+            document.getElementById('status-bar').innerText = text;
+        }
+
+        // --- AI 手势 ---
+        function initMediaPipe() {
+            const video = document.getElementById('video-element');
+            const hands = new Hands({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+            hands.setOptions({maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6});
+            
+            hands.onResults(res => {
+                if(!res.multiHandLandmarks.length) {
+                    STATE.handVisible = false;
+                    return;
+                }
+                STATE.handVisible = true;
+                const lm = res.multiHandLandmarks[0];
+                
+                // 平滑输入
+                STATE.handX = STATE.handX * 0.8 + (1-lm[9].x) * 0.2;
+                STATE.handY = STATE.handY * 0.8 + lm[9].y * 0.2;
+
+                // 手势识别
+                const pinch = Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.06;
+                let openCount = 0;
+                [8,12,16,20].forEach(t => { if(lm[t].y < lm[t-2].y) openCount++; });
+                
+                // 逻辑控制
+                if(pinch) {
+                    if(STATE.mode === 'SCATTER' && hoveredPhoto) {
+                        grabbedPhoto = hoveredPhoto;
+                        STATE.mode = 'ZOOM';
+                        updateStatus("👌 已抓取");
+                    }
+                } else if(openCount >= 4) {
+                    if(STATE.mode === 'ZOOM') {
+                        grabbedPhoto = null; // 释放
+                        STATE.mode = 'SCATTER';
+                        updateStatus("🖐 释放照片");
+                    } else if(STATE.mode === 'MORPH') {
+                        switchToMode('SCATTER');
+                    }
+                } else if(openCount <= 1) {
+                    if(STATE.mode === 'SCATTER') {
+                        // 切换下一个形态
+                        STATE.shapeIndex = (STATE.shapeIndex + 1) % 4;
+                        switchToMode('MORPH');
+                    }
                 }
             });
             
-            if(closest) activatePhoto(closest.mesh);
-        }
-
-        function activatePhoto(mesh) {
-            resetPhoto();
-            STATE.mode = 'ZOOM';
-            // 找到对应的数据对象
-            const data = photosData.find(p => p.mesh === mesh);
-            if(data) data.focus = true;
-            document.getElementById('gesture-status').innerText = "已抓取! (张手释放)";
-        }
-
-        function resetPhoto() {
-            photosData.forEach(p => p.focus = false);
+            const cam = new Camera(video, {
+                onFrame: async () => await hands.send({image: video}),
+                width: 320, height: 240
+            });
+            cam.start();
         }
     </script>
 </body>
