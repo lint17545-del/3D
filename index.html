@@ -2,168 +2,152 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>SPIC V18 - China Optimized</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPIC 工业视界 (V19 Stable Core)</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Microsoft YaHei', sans-serif; }
+        body { margin: 0; overflow: hidden; background-color: #020202; font-family: "Microsoft YaHei", sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
-        /* 加载层 */
-        #loader {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #020205; z-index: 999;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: #00ffff; transition: opacity 0.5s;
+        #ui-layer {
+            position: absolute; top: 20px; left: 20px; z-index: 10;
+            color: #ffffff; pointer-events: none; user-select: none;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
         }
-        .loader-text { font-size: 18px; margin-bottom: 20px; letter-spacing: 2px; }
-        .spinner { width: 40px; height: 40px; border: 4px solid #333; border-top: 4px solid #00ffff; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        h1 { margin: 0; font-weight: 300; letter-spacing: 4px; font-size: 24px; color: #d4af37; text-shadow: 0 0 15px rgba(212, 175, 55, 0.8); }
         
-        /* 强制启动按钮 (网络错误时出现) */
-        #force-start-btn {
-            margin-top: 30px; padding: 10px 25px;
-            background: transparent; border: 1px solid #FF4500; color: #FF4500;
-            cursor: pointer; display: none; font-size: 14px;
-        }
-        #force-start-btn:hover { background: #FF4500; color: #fff; }
-
-        /* UI */
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
-        .header { position: absolute; top: 30px; width: 100%; text-align: center; }
-        h1 { margin: 0; font-size: 28px; color: #fff; text-shadow: 0 0 15px rgba(0,255,255,0.5); letter-spacing: 4px; }
-        .status-pill {
-            position: absolute; top: 100px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.6); padding: 6px 20px; border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.2); color: #FFD700; font-size: 14px;
-        }
-        .controls { position: absolute; bottom: 30px; width: 100%; text-align: center; color: rgba(255,255,255,0.5); font-size: 12px; }
+        .status-tag { font-size: 14px; color: #00ffea; margin-top: 10px; border: 1px solid #00ffea; display: inline-block; padding: 4px 10px; background: rgba(0,0,0,0.6); border-radius: 20px;}
         
-        /* 交互光标 */
-        #cursor {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 30px; height: 30px; border: 1px solid rgba(255,255,255,0.3); border-radius: 50%;
-            pointer-events: none; transition: 0.2s; z-index: 20;
-        }
-        #cursor.active { width: 50px; height: 50px; border-color: #00ff00; background: rgba(0,255,0,0.1); }
-
+        #controls-hint { margin-top: 10px; font-size: 12px; color: #aaa; line-height: 1.6; }
+        
         #upload-btn {
-            position: absolute; right: 20px; top: 20px; pointer-events: auto;
-            border: 1px solid #00ffff; color: #00ffff; padding: 8px 15px; font-size: 12px; cursor: pointer;
+            pointer-events: auto; background: linear-gradient(90deg, #b30000, #d4af37);
+            border: none; color: #ffffff; padding: 10px 20px;
+            cursor: pointer; margin-top: 20px; display: inline-block;
+            font-size: 12px; border-radius: 30px; text-transform: uppercase;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); transition: 0.3s;
         }
+        #upload-btn:hover { transform: scale(1.05); box-shadow: 0 0 25px rgba(212, 175, 55, 0.6); }
         input[type="file"] { display: none; }
         
-        #video-element { position: absolute; bottom: 10px; left: 10px; width: 100px; opacity: 0.3; transform: scaleX(-1); pointer-events: none; }
+        .input_video { display: none; }
+        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 999; display: flex; justify-content: center; align-items: center; color: #00ffff; font-size: 18px; transition: opacity 0.5s; }
     </style>
-
-    <script src="https://cdn.bootcdn.net/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.bootcdn.net/ajax/libs/three.js/r128/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="https://cdn.bootcdn.net/ajax/libs/three.js/r128/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="https://cdn.bootcdn.net/ajax/libs/three.js/r128/examples/js/postprocessing/ShaderPass.js"></script>
-    <script src="https://cdn.bootcdn.net/ajax/libs/three.js/r128/examples/js/shaders/CopyShader.js"></script>
-    <script src="https://cdn.bootcdn.net/ajax/libs/three.js/r128/examples/js/shaders/LuminosityHighPassShader.js"></script>
-    <script src="https://cdn.bootcdn.net/ajax/libs/three.js/r128/examples/js/postprocessing/UnrealBloomPass.js"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
-    <div id="loader">
-        <div class="spinner"></div>
-        <div class="loader-text" id="loader-msg">正在连接资源...</div>
-        <button id="force-start-btn" onclick="forceStart()">网络卡顿？点击强制启动 (无手势)</button>
-    </div>
+    <div id="loader">系统启动中...</div>
 
     <div id="ui-layer">
-        <div class="header">
-            <h1>SPIC 能源视界 V18</h1>
+        <h1 id="scene-title">🐎 战马形态</h1>
+        <div class="status-tag" id="gesture-status">等待摄像头/鼠标...</div>
+        <div id="controls-hint">
+            ✊握拳: 切换场景 (马/塔/风光/字)<br>
+            🖐张开: 散开 (照片画廊)<br>
+            👌捏合: 抓取照片 (或点击鼠标)
         </div>
-        <div class="status-pill" id="status">系统就绪</div>
-        <label id="upload-btn">+ 注入照片 <input type="file" id="file-input" multiple accept="image/*"></label>
-        <div id="cursor"></div>
-        <div class="controls">🖱️鼠标/🖐手势均可控制 | 点击/捏合抓取 | 移动旋转</div>
+        <label id="upload-btn">
+            + 注入照片 (Gallery)
+            <input type="file" id="file-input" multiple accept="image/*">
+        </label>
     </div>
 
-    <video id="video-element" playsinline></video>
+    <video class="input_video" playsinline></video>
     <div id="canvas-container"></div>
-    <canvas id="genCanvas" width="2048" height="1024" style="display:none;"></canvas>
+    <canvas id="genCanvas" width="1024" height="512" style="display:none;"></canvas>
+
+    <script src="https://cdn.staticfile.org/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
     <script>
-        // --- 战马骨骼数据 (硬编码) ---
+        // --- 战马骨骼关键点 (硬编码，确保无需下载模型) ---
         const HORSE_PTS = [
             0,20,10, 5,20,8, 10,22,5, 15,25,0, 20,28,-2, 25,20,-2, 28,15,-3, 20,5,0, 15,0,2, 
             -5,18,12, -15,18,10, -25,10,5, -5,5,10, -15,5,8, -20,8,5, 
-            5,-10,5, 5,-30,5, -20,-10,5, -25,-30,8, -35,10,5
+            5,-10,5, 5,-30,5, -20,-10,5, -25,-30,8, -35,10,5,
+            // 补充点，让马更丰满
+            0,15,8, -10,12,8, -20,0,5, 5,-5,5
         ];
 
-        // --- 全局变量 ---
-        const CONFIG = { count: 20000 };
-        let scene, camera, renderer, composer, particles, particleGeo;
-        let photoGroup, photos = [];
-        let raycaster = new THREE.Raycaster();
-        let mouse = new THREE.Vector2();
-        
-        // 状态
-        const STATE = { mode: 'SCATTER', shapeIdx: 0, handX: 0.5, isHandActive: false, autoRot: 0 };
-        const POSITIONS = { HORSE:[], TOWER:[], SCENE:[], TEXT:[], SCATTER:[] };
-        
-        let grabbedPhoto = null;
-        let hoveredPhoto = null;
-
-        // 初始化超时检测
-        setTimeout(() => {
-            if(document.getElementById('loader').style.display !== 'none') {
-                document.getElementById('loader-msg').innerText = "AI 组件加载缓慢...";
-                document.getElementById('force-start-btn').style.display = "block";
-            }
-        }, 3000);
-
-        function forceStart() {
-            startApp(); // 强制进入
-        }
-
-        // 核心启动入口
-        window.onload = function() {
-            // 检查 Three.js 是否加载成功
-            if (typeof THREE === 'undefined') {
-                alert("Three.js 加载失败，请检查网络或更换网络环境。");
-                return;
-            }
-            startApp();
+        // --- 配置 ---
+        const CONFIG = { 
+            particleCount: 18000, 
+            cameraZ: 100, 
+            colors: { 
+                horse: [0xD4AF37, 0xC41E3A, 0xFF4500], 
+                tower: [0x00BFFF, 0xFFFFFF, 0x228B22],
+                wind: [0x00FF7F, 0xF0FFFF],
+                text: [0x88CCFF]
+            } 
         };
 
-        function startApp() {
-            document.getElementById('loader').style.display = 'none';
+        const STATE = { 
+            mode: 'SHAPE', // SHAPE, SCATTER, ZOOM
+            shapeIdx: 0,   // 0:马, 1:塔, 2:风光, 3:文字
+            handVisible: false, 
+            handX: 0.5, handY: 0.5,
+            autoRotate: 0
+        };
+
+        // 全局变量
+        let scene, camera, renderer, composer;
+        let particlesMesh, photoGroup, dummy = new THREE.Object3D();
+        let raycaster = new THREE.Raycaster();
+        let particlesData = [], photosData = [];
+        
+        // 你的防晕相机变量
+        let lookAtTarget = new THREE.Vector3(0, 0, 0);
+        let currentLookAt = new THREE.Vector3(0, 0, 0);
+
+        // 形态数据缓存
+        const SHAPES = { HORSE:[], TOWER:[], SCENE:[], TEXT:[], SCATTER:[] };
+
+        // 启动
+        window.onload = () => {
             initThree();
-            generateData();
-            createParticles();
-            switchMode('SCATTER');
-            animate();
-            
-            // 尝试启动 AI，失败不影响主程序
-            try { initMediaPipe(); } catch(e) { console.log("AI Init failed, using mouse mode"); }
-        }
+            generateAllData(); // 生成数据
+            createParticles(); // 创建粒子
+            startCamera();     // 启动AI
+            document.getElementById('loader').style.display = 'none';
+        };
 
         function initThree() {
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x000000, 0.001);
+            scene.fog = new THREE.FogExp2(0x020202, 0.0015);
 
-            camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 4000);
-            camera.position.set(0, 0, 400);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 0, CONFIG.cameraZ);
 
-            renderer = new THREE.WebGLRenderer({ antialias: false });
+            renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false }); // 性能优化
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
             container.appendChild(renderer.domElement);
 
-            // 辉光
-            const renderScene = new THREE.RenderPass(scene, camera);
-            const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            bloomPass.threshold = 0.15; bloomPass.strength = 1.2; bloomPass.radius = 0.5;
-            composer = new THREE.EffectComposer(renderer);
-            composer.addPass(renderScene);
-            composer.addPass(bloomPass);
+            // 灯光
+            scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+            const l1 = new THREE.PointLight(0xffd700, 1.5, 200); l1.position.set(50,50,50); scene.add(l1);
+            const l2 = new THREE.PointLight(0x00ffff, 1.5, 200); l2.position.set(-50,0,50); scene.add(l2);
+
+            // 后处理
+            try {
+                const renderScene = new THREE.RenderPass(scene, camera);
+                const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+                bloomPass.threshold = 0.2; bloomPass.strength = 1.2; bloomPass.radius = 0.5;
+                composer = new THREE.EffectComposer(renderer);
+                composer.addPass(renderScene);
+                composer.addPass(bloomPass);
+            } catch(e) { console.log("Bloom disabled"); }
 
             photoGroup = new THREE.Group();
             scene.add(photoGroup);
@@ -171,278 +155,334 @@
             // 事件
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight); composer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                if(composer) composer.setSize(window.innerWidth, window.innerHeight);
             });
-            window.addEventListener('mousemove', e => {
-                if(!STATE.isHandActive) STATE.handX = e.clientX / window.innerWidth;
-                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            
+            // 鼠标作为备用交互
+            document.addEventListener('mousemove', e => {
+                if(!STATE.handVisible) {
+                    STATE.handX = e.clientX/window.innerWidth;
+                    STATE.handY = e.clientY/window.innerHeight;
+                }
             });
-            window.addEventListener('click', onClick);
-            document.getElementById('file-input').addEventListener('change', handleUpload);
+            document.addEventListener('click', (e) => {
+                if(e.target.id === 'upload-btn') return;
+                if(STATE.mode === 'ZOOM') {
+                    STATE.mode = 'SCATTER'; resetPhoto(); updateUI("🖐 释放照片");
+                } else if(STATE.mode === 'SCATTER') {
+                    // 尝试抓取
+                    raycastGrab();
+                } else {
+                    // 切换场景
+                    STATE.shapeIdx = (STATE.shapeIdx+1)%4;
+                    updateSceneInfo();
+                }
+            });
+            document.getElementById('file-input').addEventListener('change', handleImageUpload);
+
+            animate();
         }
 
-        // --- 数据生成 (数学算法) ---
-        function generateData() {
-            // 1. 马 (骨骼插值)
+        // --- 核心：程序化生成数据 (无模型下载) ---
+        function generateAllData() {
+            // 1. 战马 (骨骼插值)
             const horse = [];
-            for(let i=0; i<CONFIG.count; i++) {
+            for(let i=0; i<CONFIG.particleCount; i++) {
                 const idx1 = Math.floor(Math.random()*(HORSE_PTS.length/3))*3;
                 const idx2 = Math.floor(Math.random()*(HORSE_PTS.length/3))*3;
                 const t = Math.random();
                 let x = HORSE_PTS[idx1] + (HORSE_PTS[idx2]-HORSE_PTS[idx1])*t;
                 let y = HORSE_PTS[idx1+1] + (HORSE_PTS[idx2+1]-HORSE_PTS[idx1+1])*t;
                 let z = HORSE_PTS[idx1+2] + (HORSE_PTS[idx2+2]-HORSE_PTS[idx1+2])*t;
-                x += (Math.random()-0.5)*8; y += (Math.random()-0.5)*8; z += (Math.random()-0.5)*5;
-                horse.push(x*4, y*4, z*4);
+                // 扩充体积
+                x += (Math.random()-0.5)*10; y += (Math.random()-0.5)*10; z += (Math.random()-0.5)*6;
+                horse.push(new THREE.Vector3(x*1.5, y*1.5, z*1.5));
             }
-            POSITIONS.HORSE = new Float32Array(horse);
+            SHAPES.HORSE = horse;
 
             // 2. 凉水塔 (双曲线)
-            const tower = []; const h=300;
-            for(let i=0; i<CONFIG.count; i++) {
-                const r = i/CONFIG.count; 
-                const y = (r-0.5)*h; 
-                const v = (y+h/2)/h;
-                let rad = 70 * Math.sqrt(1 + Math.pow(v*2.2-1.3, 2)*0.6);
-                if(r>0.9) rad = Math.random()*80; // 蒸汽
-                const ang = r*Math.PI*100;
-                tower.push(Math.cos(ang)*rad, y, Math.sin(ang)*rad);
+            const tower = [];
+            const H = 80;
+            for(let i=0; i<CONFIG.particleCount; i++) {
+                const r = i/CONFIG.particleCount;
+                const y = (r-0.5)*H;
+                const v = (y+H/2)/H; 
+                let rad = 20 * Math.sqrt(1 + Math.pow(v*2.2-1.3, 2)*0.6);
+                if(r>0.95) rad = Math.random()*30; // 蒸汽
+                const ang = r*Math.PI*120;
+                tower.push(new THREE.Vector3(Math.cos(ang)*rad, y, Math.sin(ang)*rad));
             }
-            POSITIONS.TOWER = new Float32Array(tower);
+            SHAPES.TOWER = tower;
 
             // 3. 风光互补
             const scene = [];
-            const addWind = (ox, oz) => {
+            const addFan = (ox, oz, s) => {
+                const h = 60*s;
                 for(let k=0; k<1500; k++) { // 柱
-                    const y=(Math.random()-0.5)*220;
-                    scene.push(ox+(Math.random()-0.5)*10, y, oz+(Math.random()-0.5)*10);
+                    scene.push(new THREE.Vector3(ox+(Math.random()-0.5)*3, (Math.random()-0.5)*h, oz+(Math.random()-0.5)*3));
                 }
-                for(let k=0; k<3; k++) { // 叶
-                    const ang = k/3*6.28;
-                    for(let j=0; j<500; j++) {
-                        const l = Math.random()*100;
-                        scene.push(ox+Math.cos(ang)*l, 110+Math.sin(ang)*l, oz);
+                for(let b=0; b<3; b++) { // 叶片
+                    const ang = b/3*6.28;
+                    for(let k=0; k<500; k++) {
+                        const l = Math.random()*35*s;
+                        scene.push(new THREE.Vector3(ox+Math.cos(ang)*l, h/2+Math.sin(ang)*l, oz));
                     }
                 }
             };
-            addWind(-100, -50); addWind(100, 50);
-            const remain = CONFIG.count - scene.length/3;
-            for(let i=0; i<remain; i++) {
+            addFan(-30, -15, 1.2); addFan(30, 15, 0.8);
+            const remain = CONFIG.particleCount - scene.length;
+            for(let i=0; i<remain; i++) { // 光伏
                 const c = Math.floor(Math.random()*10); const r = Math.floor(Math.random()*5);
-                scene.push((c-5)*40, -120, (r-2)*40+100);
+                scene.push(new THREE.Vector3((c-5)*12, -40, (r-2)*10+30));
             }
-            POSITIONS.SCENE = new Float32Array(scene);
+            SHAPES.SCENE = scene;
 
             // 4. 文字
-            POSITIONS.TEXT = createText("风光无限  国家电投");
+            SHAPES.TEXT = createTextPoints("风光无限  国家电投");
 
             // 5. 散开
-            POSITIONS.SCATTER = new Float32Array(CONFIG.count*3);
-            for(let i=0; i<CONFIG.count*3; i++) POSITIONS.SCATTER[i] = (Math.random()-0.5)*1500;
+            for(let i=0; i<CONFIG.particleCount; i++) {
+                SHAPES.SCATTER.push(new THREE.Vector3((Math.random()-0.5)*250, (Math.random()-0.5)*200, (Math.random()-0.5)*250));
+            }
         }
 
-        function createText(t) {
+        function createTextPoints(txt) {
             const c=document.getElementById('genCanvas').getContext('2d');
-            c.clearRect(0,0,2048,1024); c.font="bold 200px 'Microsoft YaHei'"; 
+            c.clearRect(0,0,1024,512); c.font="bold 120px 'Microsoft YaHei'"; 
             c.fillStyle="#fff"; c.textAlign="center"; c.textBaseline="middle"; 
-            c.fillText(t,1024,512);
-            const d=c.getImageData(0,0,2048,1024).data; const p=[]; const v=[];
-            for(let y=0;y<1024;y+=8)for(let x=0;x<2048;x+=8)if(d[(y*2048+x)*4+3]>100)v.push({x,y});
-            for(let i=0;i<CONFIG.count;i++){const pt=v[i%v.length]; p.push((pt.x-1024)*0.4, -(pt.y-512)*0.4, 0);}
-            return new Float32Array(p);
+            c.fillText(txt,512,256);
+            const d=c.getImageData(0,0,1024,512).data; const v=[]; const pts=[];
+            for(let y=0;y<512;y+=4)for(let x=0;x<1024;x+=4)if(d[(y*1024+x)*4+3]>100)v.push({x,y});
+            for(let i=0;i<CONFIG.particleCount;i++){const p=v[i%v.length]; pts.push(new THREE.Vector3((p.x-512)*0.15, -(p.y-256)*0.15, 0));}
+            return pts;
         }
 
         function createParticles() {
-            // 贴图
-            const cvs=document.createElement('canvas'); cvs.width=32; cvs.height=32;
-            const ctx=cvs.getContext('2d');
-            const g=ctx.createRadialGradient(16,16,0,16,16,16);
-            g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(1,'rgba(0,0,0,0)');
-            ctx.fillStyle=g; ctx.fillRect(0,0,32,32); const tex=new THREE.CanvasTexture(cvs);
-
-            const geo = new THREE.BufferGeometry();
-            const pos = new Float32Array(CONFIG.count*3);
-            const col = new Float32Array(CONFIG.count*3);
-            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-            geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-
-            const mat = new THREE.PointsMaterial({
-                size: 2.2, map: tex, vertexColors: true,
-                blending: THREE.AdditiveBlending, depthWrite: false, transparent: true
-            });
-            particles = new THREE.Points(geo, mat);
-            scene.add(particles);
-        }
-
-        function switchMode(m) {
-            STATE.mode = m;
-            const st = document.getElementById('status');
-            const cols = particles.geometry.attributes.color.array;
-            let trg, c1, c2;
-
-            if(m === 'SCATTER') {
-                st.innerText = "🖐 画廊模式 (挥手/鼠标旋转)";
-                st.style.color = "#00ffff";
-                photos.forEach((p,i) => {
-                    const a = i/photos.length * Math.PI * 2;
-                    p.target.set(Math.cos(a)*250, (Math.random()-0.5)*100, Math.sin(a)*250);
-                    p.mesh.lookAt(0,0,0);
-                });
-            } else if(m === 'MORPH') {
-                photos.forEach(p => p.target.set(0,-2000,0)); // 藏照片
-                
-                if(STATE.shapeIdx === 0) {
-                    st.innerText = "🐎 战马形态"; st.style.color = "#FFD700";
-                    c1 = new THREE.Color(0xFFD700); c2 = new THREE.Color(0xFF4500);
-                } else if(STATE.shapeIdx === 1) {
-                    st.innerText = "💎 品牌愿景"; st.style.color = "#88CCFF";
-                    c1 = new THREE.Color(0x88CCFF); c2 = new THREE.Color(0xFFFFFF);
-                } else if(STATE.shapeIdx === 2) {
-                    st.innerText = "🏭 绿色火电"; st.style.color = "#00FF00";
-                    c1 = new THREE.Color(0x00BFFF); c2 = new THREE.Color(0x228B22);
-                } else {
-                    st.innerText = "⚡ 风光互补"; st.style.color = "#00FFAA";
-                    c1 = new THREE.Color(0x00FF7F); c2 = new THREE.Color(0xFFA500);
-                }
-
-                for(let i=0; i<CONFIG.count; i++) {
-                    const c = Math.random()>0.5 ? c1 : c2;
-                    cols[i*3] = c.r; cols[i*3+1] = c.g; cols[i*3+2] = c.b;
-                }
-                particles.geometry.attributes.color.needsUpdate = true;
-            } else if(m === 'ZOOM') {
-                st.innerText = "👌 抓取成功"; st.style.color = "#FF00FF";
-            }
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
+            const geo = new THREE.IcosahedronGeometry(0.2, 0); // 低模粒子
+            const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.8 });
+            particlesMesh = new THREE.InstancedMesh(geo, mat, CONFIG.particleCount);
             
-            const positions = particles.geometry.attributes.position.array;
-            let target;
-            if(STATE.mode==='SCATTER' || STATE.mode==='ZOOM') target = POSITIONS.SCATTER;
-            else if(STATE.shapeIdx===0) target = POSITIONS.HORSE;
-            else if(STATE.shapeIdx===1) target = POSITIONS.TEXT;
-            else if(STATE.shapeIdx===2) target = POSITIONS.TOWER;
-            else target = POSITIONS.SCENE;
-
-            for(let i=0; i<CONFIG.count; i++) {
-                const x=i*3;
-                positions[x] += (target[x] - positions[x]) * 0.08;
-                positions[x+1] += (target[x+1] - positions[x+1]) * 0.08;
-                positions[x+2] += (target[x+2] - positions[x+2]) * 0.08;
+            const col = new THREE.Color();
+            for(let i=0; i<CONFIG.particleCount; i++) {
+                dummy.position.copy(SHAPES.SCATTER[i]);
+                dummy.updateMatrix();
+                particlesMesh.setMatrixAt(i, dummy.matrix);
                 
-                if(STATE.mode==='SCATTER') positions[x+1] += Math.sin(Date.now()*0.002 + i)*0.2;
-            }
-            particles.geometry.attributes.position.needsUpdate = true;
-
-            // 旋转
-            if(STATE.mode==='SCATTER') {
-                STATE.autoRot += (STATE.handX - 0.5) * 0.05;
-                photos.forEach((p,i) => {
-                    if(p === grabbedPhoto) return;
-                    const a = i/photos.length * Math.PI*2 + STATE.autoRot;
-                    p.target.set(Math.cos(a)*250, (Math.random()-0.5)*100, Math.sin(a)*250);
-                    p.mesh.lookAt(0,0,0);
+                // 初始数据
+                particlesData.push({ 
+                    cur: SHAPES.SCATTER[i].clone(), 
+                    target: SHAPES.HORSE[i], // 默认目标
+                    speed: 0.02 + Math.random()*0.04 
                 });
-            } else if(STATE.mode==='MORPH') {
-                particles.rotation.y += 0.003;
             }
-
-            updatePhotos();
-            composer.render();
+            scene.add(particlesMesh);
+            updateSceneInfo(); // 初始化颜色
         }
 
-        function updatePhotos() {
-            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-            const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
-            let best = null; let maxD = 0.96;
+        // --- 逻辑 ---
+        function updateSceneInfo() {
+            const title = document.getElementById('scene-title');
+            const status = document.getElementById('gesture-status');
+            let colors;
+            
+            if(STATE.shapeIdx===0) { title.innerText="🐎 战马形态 (红金)"; colors=CONFIG.colors.horse; }
+            else if(STATE.shapeIdx===1) { title.innerText="🏭 凉水塔 (彩绘)"; colors=CONFIG.colors.tower; }
+            else if(STATE.shapeIdx===2) { title.innerText="⚡ 风光互补"; colors=CONFIG.colors.wind; }
+            else { title.innerText="💎 品牌愿景"; colors=CONFIG.colors.text; }
 
-            photos.forEach(p => {
-                p.mesh.position.lerp(p.target, 0.1);
+            // 更新粒子目标和颜色
+            const targetShape = [SHAPES.HORSE, SHAPES.TOWER, SHAPES.SCENE, SHAPES.TEXT][STATE.shapeIdx];
+            
+            for(let i=0; i<CONFIG.particleCount; i++) {
+                particlesData[i].target = targetShape[i];
                 
-                if(p === grabbedPhoto) {
-                    const t = camera.position.clone().add(camDir.clone().multiplyScalar(30));
-                    p.target.copy(t);
-                    p.mesh.lookAt(camera.position);
-                    p.mesh.scale.lerp(new THREE.Vector3(2,2,2), 0.1);
-                } else if(STATE.mode==='SCATTER') {
-                    const dir = p.mesh.position.clone().sub(camera.position).normalize();
-                    const dot = camDir.dot(dir);
-                    if(dot > maxD) { maxD = dot; best = p; }
-                    p.mesh.scale.lerp(new THREE.Vector3(0.6,0.6,0.6), 0.1);
-                }
-            });
-
-            const cur = document.getElementById('cursor');
-            if(best && !grabbedPhoto) {
-                hoveredPhoto = best;
-                hoveredPhoto.mesh.scale.lerp(new THREE.Vector3(0.8,0.8,0.8), 0.2);
-                cur.className = 'active';
-            } else if(grabbedPhoto) {
-                cur.className = 'active';
-            } else {
-                hoveredPhoto = null;
-                cur.className = '';
+                // 简单的颜色分配
+                const cHex = colors[Math.floor(Math.random()*colors.length)];
+                const col = new THREE.Color(cHex);
+                particlesMesh.setColorAt(i, col);
             }
+            particlesMesh.instanceColor.needsUpdate = true;
+            status.innerText = "场景已切换";
         }
 
-        function handleUpload(e) {
-            const f = e.target.files; if(!f.length) return;
-            photos.forEach(p => photoGroup.remove(p.mesh)); photos = [];
-            Array.from(f).forEach(file => {
+        function handleImageUpload(e) {
+            const files = e.target.files; if(!files.length) return;
+            photosData.forEach(p => photoGroup.remove(p.mesh)); photosData = [];
+            
+            Array.from(files).forEach(f => {
                 const r = new FileReader();
                 r.onload = ev => {
                     const img = new Image(); img.src = ev.target.result;
-                    img.onload = () => {
-                        const tex = new THREE.Texture(img); tex.needsUpdate=true; 
-                        const ar = img.width/img.height;
-                        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(10*ar, 10), new THREE.MeshBasicMaterial({map:tex, side:THREE.DoubleSide}));
-                        // 边框
-                        const border = new THREE.Mesh(new THREE.PlaneGeometry(10*ar+0.5, 10.5), new THREE.MeshBasicMaterial({color:0x00ffff}));
-                        border.position.z = -0.1; mesh.add(border);
-                        photoGroup.add(mesh);
-                        photos.push({ mesh, target: new THREE.Vector3(0,-2000,0) });
-                    }
-                }
-                r.readAsDataURL(file);
+                    img.onload = () => createPhoto(img);
+                };
+                r.readAsDataURL(f);
             });
-            switchMode('SCATTER');
+            
+            // 自动切到散开模式
+            STATE.mode = 'SCATTER';
+            document.getElementById('gesture-status').innerText = `已加载 ${files.length} 张照片`;
         }
 
-        function onClick() {
-            if(grabbedPhoto) { grabbedPhoto=null; switchMode('SCATTER'); }
-            else if(hoveredPhoto) { grabbedPhoto=hoveredPhoto; switchMode('ZOOM'); }
-            else if(STATE.mode==='SCATTER') {
-                STATE.shapeIdx = (STATE.shapeIdx+1)%4; switchMode('MORPH');
+        function createPhoto(img) {
+            const tex = new THREE.Texture(img); tex.needsUpdate=true; 
+            const ar = img.width/img.height;
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(8*ar, 8), new THREE.MeshBasicMaterial({map:tex, side:THREE.DoubleSide}));
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(8*ar+0.2, 8.2, 0.1), new THREE.MeshBasicMaterial({color:0xffffff}));
+            mesh.position.z = 0.06; frame.add(mesh);
+            
+            // 散开位置 (圆环)
+            const angle = Math.random() * Math.PI * 2;
+            const r = 60 + Math.random()*20;
+            const scat = new THREE.Vector3(Math.cos(angle)*r, (Math.random()-0.5)*40, Math.sin(angle)*r);
+            
+            frame.position.copy(scat);
+            frame.lookAt(0,0,0);
+            
+            photoGroup.add(frame);
+            photosData.push({ mesh:frame, cur:scat.clone(), scat:scat, focus:false, baseRot:frame.rotation.clone() });
+        }
+
+        // --- 核心动画 (Lerp + Anti-Dizzy) ---
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = Date.now() * 0.001;
+
+            // 1. 粒子运动
+            for(let i=0; i<CONFIG.particleCount; i++) {
+                const d = particlesData[i];
+                let tgt = (STATE.mode==='SHAPE') ? d.target : SHAPES.SCATTER[i];
+                
+                // 散开时加点漂浮
+                if(STATE.mode !== 'SHAPE') {
+                    tgt = SHAPES.SCATTER[i].clone();
+                    tgt.y += Math.sin(time + i*0.1) * 5;
+                }
+
+                d.cur.lerp(tgt, d.speed);
+                dummy.position.copy(d.cur);
+                // 粒子本身不旋转，保持高性能
+                dummy.updateMatrix();
+                particlesMesh.setMatrixAt(i, dummy.matrix);
+            }
+            particlesMesh.instanceMatrix.needsUpdate = true;
+
+            // 2. 照片运动
+            if(STATE.mode === 'SCATTER' || STATE.mode === 'ZOOM') {
+                // 自动旋转画廊
+                if(STATE.mode === 'SCATTER' && !STATE.handVisible) STATE.autoRotate += 0.002;
+                if(STATE.handVisible) STATE.autoRotate += (STATE.handX - 0.5) * 0.05;
+
+                photosData.forEach((p, i) => {
+                    let tgt;
+                    let scale = 1;
+                    
+                    if(p.focus) {
+                        // 抓取：飞到眼前
+                        const v = new THREE.Vector3(0,0,-15).applyQuaternion(camera.quaternion);
+                        tgt = camera.position.clone().add(v);
+                        p.mesh.lookAt(camera.position);
+                        scale = 2.5;
+                    } else {
+                        // 散开：圆环布局 + 旋转
+                        const total = photosData.length;
+                        const angle = (i/total)*Math.PI*2 + STATE.autoRotate;
+                        const r = 70;
+                        tgt = new THREE.Vector3(Math.cos(angle)*r, p.scat.y, Math.sin(angle)*r);
+                        p.mesh.lookAt(0,0,0); // 面向中心
+                    }
+                    
+                    p.cur.lerp(tgt, 0.05);
+                    p.mesh.position.copy(p.cur);
+                    p.mesh.scale.lerp(new THREE.Vector3(scale,scale,scale), 0.1);
+                });
+            } else {
+                // 隐藏照片
+                photosData.forEach(p => p.mesh.position.set(0,-1000,0));
+            }
+
+            // 3. 相机 (Anti-Dizzy)
+            if(STATE.mode === 'SCATTER' || STATE.mode === 'SHAPE') {
+                const tx = (STATE.handX - 0.5) * 30; // 左右微动
+                const ty = (STATE.handY - 0.5) * 20;
+                
+                // 目标是看向中心，但带一点偏移
+                lookAtTarget.set(tx, ty, 0);
+                currentLookAt.lerp(lookAtTarget, 0.05);
+                camera.lookAt(currentLookAt);
+                
+                // 相机位置轻微浮动
+                camera.position.lerp(new THREE.Vector3(tx*0.5, ty*0.5, CONFIG.cameraZ), 0.05);
+            }
+
+            if(composer) composer.render(); else renderer.render(scene, camera);
+        }
+
+        // --- 交互 ---
+        function raycastGrab() {
+            if(STATE.mode === 'ZOOM' || photosData.length === 0) return;
+            
+            // 你的 V3.4 逻辑：优先吸附中心
+            let closest = null; let minAngle = Infinity;
+            const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
+            
+            photosData.forEach(p => {
+                const toPhoto = p.mesh.position.clone().sub(camera.position).normalize();
+                const angle = camDir.angleTo(toPhoto);
+                // 只要在视野中心 20度 以内
+                if(angle < 0.4 && angle < minAngle) { minAngle = angle; closest = p; }
+            });
+            
+            if(closest) {
+                resetPhoto();
+                STATE.mode = 'ZOOM';
+                closest.focus = true;
+                document.getElementById('gesture-status').innerText = "已抓取 (张手释放)";
             }
         }
 
-        function initMediaPipe() {
-            const v = document.getElementById('video-element');
-            const hands = new Hands({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-            hands.setOptions({maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6});
-            hands.onResults(res => {
-                if(!res.multiHandLandmarks.length) { STATE.isHandActive=false; return; }
-                STATE.isHandActive = true;
-                const lm = res.multiHandLandmarks[0];
-                STATE.handX = 1 - lm[9].x; 
-                
-                const pinch = Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05;
-                let open=0; [8,12,16,20].forEach(t=>{if(lm[t].y<lm[t-2].y)open++});
+        function resetPhoto() { photosData.forEach(p => p.focus = false); }
+        function updateUI(msg) { document.getElementById('gesture-status').innerText = msg; }
 
-                if(pinch) {
-                    if(STATE.mode==='SCATTER' && hoveredPhoto) { grabbedPhoto=hoveredPhoto; switchMode('ZOOM'); }
-                } else if(open>=4) {
-                    if(STATE.mode==='ZOOM') { grabbedPhoto=null; switchMode('SCATTER'); }
-                    else if(STATE.mode==='MORPH') switchMode('SCATTER');
-                } else if(open<=1) {
-                    if(STATE.mode==='SCATTER') { STATE.shapeIdx=(STATE.shapeIdx+1)%4; switchMode('MORPH'); }
-                }
-            });
-            const cam = new Camera(v, {onFrame: async()=>{await hands.send({image:v})}, width:320, height:240});
-            cam.start();
+        // --- AI ---
+        async function startCamera() {
+            try {
+                const video = document.getElementsByClassName('input_video')[0];
+                const hands = new Hands({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+                hands.setOptions({maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6});
+                hands.onResults(res => {
+                    if(res.multiHandLandmarks.length) {
+                        STATE.handVisible = true;
+                        const lm = res.multiHandLandmarks[0];
+                        STATE.handX = STATE.handX*0.8 + (1-lm[9].x)*0.2;
+                        STATE.handY = STATE.handY*0.8 + lm[9].y*0.2;
+
+                        const pinch = Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05;
+                        let open=0; [8,12,16,20].forEach(t=>{if(lm[t].y<lm[t-2].y)open++});
+
+                        if(pinch) {
+                            if(STATE.mode==='SCATTER') raycastGrab();
+                        } else if(open>=4) {
+                            if(STATE.mode==='ZOOM') { STATE.mode='SCATTER'; resetPhoto(); updateUI("🖐 照片画廊"); }
+                            else if(STATE.mode==='SHAPE') { STATE.mode='SCATTER'; updateUI("🖐 照片画廊"); }
+                        } else if(open<=1) {
+                            if(STATE.mode==='SCATTER') {
+                                STATE.mode='SHAPE';
+                                STATE.shapeIdx = (STATE.shapeIdx+1)%4;
+                                updateSceneInfo();
+                            }
+                        }
+                    } else {
+                        STATE.handVisible = false;
+                    }
+                });
+                const cam = new Camera(video, {onFrame: async()=>{await hands.send({image:video})}, width:480, height:360});
+                await cam.start();
+                updateUI("摄像头已激活");
+            } catch(e) {
+                console.log("Camera failed", e);
+                updateUI("摄像头不可用，请使用鼠标");
+            }
         }
     </script>
 </body>
