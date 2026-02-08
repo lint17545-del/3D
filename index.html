@@ -1,59 +1,65 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nebula Horse - Cinematic Edition</title>
+    <title>Golden Constellation Horse</title>
     <style>
         body { 
-            margin: 0; 
-            overflow: hidden; 
-            background-color: #050000; /* 深邃黑红背景 */
+            margin: 0; overflow: hidden; 
+            background: radial-gradient(circle at center, #1a0505 0%, #000000 100%);
             font-family: 'Arial', sans-serif; 
         }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; z-index: 1; }
         
-        /* UI 只有极简风格 */
+        /* 极简 UI */
         #ui-layer {
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            position: absolute; bottom: 40px; left: 0; width: 100%;
             z-index: 10; text-align: center; pointer-events: none;
-            width: 80%;
+            display: flex; flex-direction: column; align-items: center; gap: 15px;
         }
 
-        .status-text {
-            color: rgba(255, 215, 0, 0.8);
-            font-size: 14px; letter-spacing: 2px;
-            text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
-            margin-bottom: 15px; font-weight: lighter;
-        }
-
-        .upload-btn {
-            pointer-events: auto;
-            background: transparent;
-            color: #FFD700;
+        .status-badge {
+            background: rgba(255, 215, 0, 0.1);
             border: 1px solid rgba(255, 215, 0, 0.3);
-            padding: 8px 20px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: 0.4s;
+            color: #FFD700;
+            padding: 8px 24px;
+            font-size: 14px;
+            border-radius: 20px;
             text-transform: uppercase;
             letter-spacing: 2px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+            transition: all 0.3s ease;
         }
-        .upload-btn:hover { 
-            background: rgba(255, 215, 0, 0.1); 
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.4); 
-            border-color: #FFD700;
+
+        .controls {
+            pointer-events: auto;
+            display: flex; gap: 20px;
         }
+
+        .btn {
+            background: transparent;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+        .btn:hover { border-color: #FFD700; color: #FFD700; box-shadow: 0 0 10px #FFD700; }
 
         #loader {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #884444; font-size: 12px; letter-spacing: 3px; z-index: 20;
+            color: #FFD700; font-size: 16px; letter-spacing: 4px;
+            text-shadow: 0 0 10px #ff0000;
         }
-
-        /* 隐藏视频源 */
+        
         .input_video { display: none; }
     </style>
-    
+
     <script type="importmap">
         {
             "imports": {
@@ -67,14 +73,17 @@
 </head>
 <body>
 
-    <div id="loader">INITIALIZING NEURAL LINK...</div>
+    <div id="loader">SYSTEM INITIALIZING...</div>
     <video class="input_video"></video>
+    
     <div id="canvas-container"></div>
 
     <div id="ui-layer">
-        <div id="status-text" class="status-text">WAITING FOR HAND SIGNAL</div>
-        <input type="file" id="imageUpload" multiple accept="image/*" style="display: none;">
-        <button class="upload-btn" onclick="document.getElementById('imageUpload').click()">+ LOAD MEMORIES</button>
+        <div id="status" class="status-badge">WAITING FOR GESTURE</div>
+        <div class="controls">
+            <button class="btn" onclick="document.getElementById('fileIn').click()">+ ADD PHOTOS</button>
+            <input type="file" id="fileIn" multiple accept="image/*" style="display:none">
+        </div>
     </div>
 
     <script type="module">
@@ -82,417 +91,417 @@
         import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
-        // --- 配置与全局变量 ---
+        // --- 1. 配置 ---
         const CONFIG = {
-            particleCount: 4000,   // 粒子数量
-            particleSize: 0.15,    // 粒子大小
-            bloomStrength: 2.0,    // 辉光强度
-            bloomThreshold: 0.3,   // 辉光阈值 (避免照片过曝)
-            colorGold: new THREE.Color(0xFFCC33), // 香槟金
-            colorRed: new THREE.Color(0x880011),  // 深红
+            particleCount: 3000,
+            gold: new THREE.Color(0xFFD700),
+            red: new THREE.Color(0xD00000), // 更纯正的红
+            cameraZ: 14
         };
 
         let scene, camera, renderer, composer;
-        let particlesSystem, photoSystem;
-        let particleGeo, particleMat;
+        let particles, geometry, material;
         let photoGroup = new THREE.Group();
-        
-        let targetPositions = []; // 存储马的形状数据
-        let currentPositions = []; // 粒子当前位置
-        let originalPositions = []; // 散开时的随机位置
-        
+        let targetPositions = []; // 马的形状数据
+        let startPositions = [];  // 散开的随机数据
         let clock = new THREE.Clock();
-        
-        // 状态
+
+        // 状态管理
         const STATE = {
-            FORM: 0,   // 马 (聚合)
-            STARDUST: 1, // 散开 (星云)
-            PHOTO: 2     // 照片展示
+            ASSEMBLED: 'assembled',
+            SCATTERED: 'scattered',
+            PHOTO_FOCUS: 'photo_focus'
         };
-        let appState = STATE.FORM;
-        let targetRotationY = 0;
-        let activePhoto = null; // 当前聚焦的照片Mesh
+        let currentState = STATE.ASSEMBLED;
+        let activePhoto = null;
+        let sceneRotationTarget = { x: 0, y: 0 };
+        let noiseOffset = 0;
 
-        // --- 1. 辅助函数：生成光点纹理 (无需外部图片) ---
-        function getGlowSprite() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 32; canvas.height = 32;
-            const context = canvas.getContext('2d');
-            // 径向渐变，中心亮，边缘透明
-            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
-            gradient.addColorStop(0, 'rgba(255,255,255,1)');
-            gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
-            gradient.addColorStop(0.5, 'rgba(255,200,100,0.2)');
-            gradient.addColorStop(1, 'rgba(0,0,0,0)');
-            context.fillStyle = gradient;
-            context.fillRect(0, 0, 32, 32);
-            const texture = new THREE.CanvasTexture(canvas);
-            return texture;
-        }
+        // --- 2. 关键修正：手动定义优雅的曲线骨架 ---
+        function getHorseCurves() {
+            const curves = [];
 
-        // --- 2. 核心：构建优美的马形 (Math Art) ---
-        function generateHorseShape(count) {
-            const positions = new Float32Array(count * 3);
-            for(let i=0; i<count; i++) {
-                let x, y, z;
-                const r = Math.random();
-                
-                // 使用概率分布来构建“肌肉块”
-                if (r < 0.35) {
-                    // 躯干 (Ribcage & Body) - 稍微压扁的椭球
-                    x = (Math.random() - 0.5) * 3.5;
-                    y = (Math.random() - 0.5) * 1.8;
-                    z = (Math.random() - 0.5) * 1.5;
-                    // 稍微向后移
-                    x -= 0.5; 
-                } else if (r < 0.55) {
-                    // 脖子 (Neck) - 贝塞尔曲线风格的管状
-                    const t = Math.random(); // 0 to 1 along neck
-                    // 脖子曲线函数
-                    const curveX = -2.0 - t * 1.5;
-                    const curveY = 1.0 + t * 2.0;
-                    // 脖子厚度随高度变细
-                    const thickness = 0.8 * (1 - t * 0.4);
-                    
-                    x = curveX + (Math.random()-0.5) * thickness;
-                    y = curveY + (Math.random()-0.5) * thickness * 1.5;
-                    z = (Math.random()-0.5) * thickness * 0.8;
-                } else if (r < 0.65) {
-                    // 头 (Head)
-                    x = -3.8 + (Math.random()-0.5) * 1.2;
-                    y = 3.2 + (Math.random()-0.5) * 0.8;
-                    z = (Math.random()-0.5) * 0.7;
-                    // 鼻子稍微突出
-                    if(Math.random() > 0.5) { x -= 0.5; y -= 0.2; }
-                } else if (r < 0.85) {
-                    // 腿 (Legs) - 动态奔跑姿态
-                    const isFront = Math.random() > 0.5;
-                    const isLeft = Math.random() > 0.5 ? -1 : 1;
-                    
-                    // 腿的基本位置
-                    const legRootX = isFront ? -2.0 : 1.5;
-                    const legRootY = -0.5;
-                    const legZ = 0.6 * isLeft;
+            // 辅助函数：创建曲线并推入数组
+            const addCurve = (points) => {
+                const vec3s = points.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+                curves.push(new THREE.CatmullRomCurve3(vec3s));
+            };
 
-                    // 简化的关节逻辑
-                    const t = Math.random(); // 0(top) to 1(hoof)
-                    
-                    // 前腿抬起，后腿蹬地
-                    let offsetX = 0;
-                    let offsetY = -t * 3.0;
-                    
-                    if (isFront) {
-                        // 前腿弯曲
-                        offsetX = Math.sin(t * Math.PI) * 1.0; 
-                        offsetY += Math.sin(t * Math.PI) * 0.5;
-                    } else {
-                        // 后腿向后蹬
-                        offsetX = t * 1.5;
-                    }
+            // 1. 脊柱与尾巴 (流线型)
+            // 从头顶 -> 脖子 -> 背部 -> 臀部 -> 尾巴尖
+            addCurve([
+                [-2.5, 3.5, 0],   // 头顶
+                [-1.5, 2.5, 0],   // 脖子根
+                [0, 2.0, 0],      // 背部中点
+                [1.5, 2.1, 0],    // 臀部
+                [2.5, 1.5, 0],    // 尾巴根
+                [3.5, 0.5, 0.5],  // 尾巴中段
+                [4.0, -1.0, 0.8]  // 尾巴尖
+            ]);
 
-                    x = legRootX + offsetX + (Math.random()-0.5)*0.4;
-                    y = legRootY + offsetY;
-                    z = legZ + (Math.random()-0.5)*0.4;
-                } else {
-                    // 鬃毛和尾巴 (粒子流)
-                    if (Math.random() > 0.5) {
-                        // 尾巴
-                        const t = Math.random();
-                        x = 1.5 + t * 2.0 + Math.random()*0.5;
-                        y = 0.5 - t * 1.5 + Math.random()*0.5;
-                        z = (Math.random()-0.5) * t * 1.0;
-                    } else {
-                        // 鬃毛
-                        const t = Math.random();
-                        x = -2.0 - t * 1.0;
-                        y = 3.5 - t * 1.5;
-                        z = 0;
-                    }
-                }
-                
-                positions[i*3] = x;
-                positions[i*3+1] = y;
-                positions[i*3+2] = z;
+            // 2. 下颚到胸部 (增加厚度感)
+            addCurve([
+                [-2.8, 2.8, 0],   // 鼻子
+                [-2.0, 1.8, 0],   // 下颚
+                [-1.0, 1.0, 0],   // 胸部前
+                [0.5, 0.8, 0]     // 腹部
+            ]);
+
+            // 3. 前腿 (动态抬起)
+            addCurve([
+                [-1.0, 1.5, 0.5],   // 肩膀L
+                [-1.2, 0.5, 0.6],   // 膝盖
+                [-1.5, -0.5, 0.6],  // 小腿
+                [-1.8, -1.5, 0.6]   // 蹄子
+            ]);
+            addCurve([
+                [-1.0, 1.5, -0.5],  // 肩膀R
+                [-0.8, 0.5, -0.6],  
+                [-0.8, -1.5, -0.6]  // 站立的腿
+            ]);
+
+            // 4. 后腿 (蹬地)
+            addCurve([
+                [1.5, 1.5, 0.6],    // 臀部L
+                [1.8, 0.0, 0.7],    // 膝盖
+                [1.2, -1.5, 0.7]    // 蹄子
+            ]);
+            addCurve([
+                [1.5, 1.5, -0.6],   // 臀部R
+                [2.2, -0.5, -0.7],  // 向后蹬
+                [2.8, -1.5, -0.7]
+            ]);
+
+            // 5. 鬃毛 (飞扬感)
+            for(let i=0; i<3; i++) {
+                addCurve([
+                    [-2.2 + i*0.3, 3.2 - i*0.2, 0],
+                    [-1.5 + i*0.4, 3.5 - i*0.1, 0.2],
+                    [-0.5 + i*0.5, 3.0, 0.3]
+                ]);
             }
-            return positions;
+
+            return curves;
         }
 
-        // --- 3. 初始化 Three.js ---
+        // --- 3. 初始化 ---
         function init() {
             const container = document.getElementById('canvas-container');
-
+            
             scene = new THREE.Scene();
-            // 添加环境雾气，增加深邃感
-            scene.fog = new THREE.FogExp2(0x050000, 0.03);
+            // 雾效让远处粒子变暗，增加深邃感
+            scene.fog = new THREE.FogExp2(0x000000, 0.04);
 
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.z = 12;
-            camera.position.y = 1;
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
+            camera.position.set(0, 0, CONFIG.cameraZ);
 
-            renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false }); // 既然是全屏深色，不需要 alpha
+            renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 优化性能
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.toneMapping = THREE.ReinhardToneMapping;
             container.appendChild(renderer.domElement);
 
-            // 粒子系统
-            const positions = new Float32Array(CONFIG.particleCount * 3);
-            const colors = new Float32Array(CONFIG.particleCount * 3);
-            const sizes = new Float32Array(CONFIG.particleCount);
-
-            // 生成马的数据
-            targetPositions = generateHorseShape(CONFIG.particleCount);
+            // --- 粒子生成逻辑 ---
+            const curves = getHorseCurves();
+            const posArray = [];
+            const colorArray = [];
+            const sizeArray = [];
             
-            // 初始化粒子位置（全屏随机分布）
+            // 预计算随机散开位置
+            startPositions = new Float32Array(CONFIG.particleCount * 3);
+
             for(let i=0; i<CONFIG.particleCount; i++) {
-                // 随机位置 (星云态)
-                positions[i*3] = (Math.random() - 0.5) * 40;
-                positions[i*3+1] = (Math.random() - 0.5) * 20;
-                positions[i*3+2] = (Math.random() - 0.5) * 20;
+                // 1. 计算马的形状目标位置 (Target Position)
+                // 随机选择一条曲线
+                const curve = curves[Math.floor(Math.random() * curves.length)];
+                const t = Math.random(); 
+                const pt = curve.getPoint(t);
                 
-                // 记录原始随机位
-                originalPositions.push(new THREE.Vector3(positions[i*3], positions[i*3+1], positions[i*3+2]));
-                currentPositions.push(new THREE.Vector3(positions[i*3], positions[i*3+1], positions[i*3+2]));
+                // 在曲线上加一点“肉”，不仅仅是线
+                const jitter = 0.35; // 身体厚度
+                pt.x += (Math.random()-0.5) * jitter;
+                pt.y += (Math.random()-0.5) * jitter;
+                pt.z += (Math.random()-0.5) * jitter;
 
-                // 颜色 (混合金色和深红色)
-                const colorMix = Math.random();
-                const color = new THREE.Color().lerpColors(CONFIG.colorRed, CONFIG.colorGold, colorMix * 0.8 + 0.2); // 偏金
-                colors[i*3] = color.r;
-                colors[i*3+1] = color.g;
-                colors[i*3+2] = color.b;
+                targetPositions.push(pt.x, pt.y, pt.z);
 
-                // 大小随机
-                sizes[i] = Math.random() * CONFIG.particleSize;
+                // 2. 初始位置 (散开)
+                startPositions[i*3] = (Math.random()-0.5) * 50;
+                startPositions[i*3+1] = (Math.random()-0.5) * 30;
+                startPositions[i*3+2] = (Math.random()-0.5) * 20;
+
+                // 3. 颜色 (更高级的金红渐变)
+                const isGold = Math.random() > 0.3; // 70% 金色
+                const color = isGold ? CONFIG.gold : CONFIG.red;
+                colorArray.push(color.r, color.g, color.b);
+
+                // 4. 大小
+                sizeArray.push(Math.random() * 0.3 + 0.1);
             }
 
-            particleGeo = new THREE.BufferGeometry();
-            particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-            particleGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+            // 创建 BufferGeometry
+            geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(startPositions.slice(), 3)); // 初始位置
+            geometry.setAttribute('targetPos', new THREE.Float32BufferAttribute(targetPositions, 3)); // 目标位置存入Attribute
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colorArray, 3));
+            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizeArray, 1));
 
-            // Shader Material 替代标准材质，为了更好的性能和效果
-            particleMat = new THREE.PointsMaterial({
-                size: 1.0,
-                map: getGlowSprite(),
+            // 创建圆形柔光纹理 (代码生成，无需图片)
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createRadialGradient(16,16,0, 16,16,16);
+            grad.addColorStop(0, 'rgba(255,255,255,1)');
+            grad.addColorStop(0.4, 'rgba(255,255,255,0.3)');
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,32,32);
+            const texture = new THREE.CanvasTexture(canvas);
+
+            material = new THREE.PointsMaterial({
+                size: 0.5,
+                map: texture,
                 vertexColors: true,
-                blending: THREE.AdditiveBlending, // 关键：加法混合让粒子发光
+                blending: THREE.AdditiveBlending, // 加法混合，发光关键
                 depthWrite: false,
                 transparent: true,
-                opacity: 0.8,
-                sizeAttenuation: true
+                opacity: 0.9
             });
 
-            particlesSystem = new THREE.Points(particleGeo, particleMat);
-            scene.add(particlesSystem);
-            scene.add(photoGroup); // 照片组
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            scene.add(photoGroup);
 
-            // 后期处理
+            // --- 后期处理 (Bloom) ---
             const renderScene = new RenderPass(scene, camera);
+            
+            // Bloom 参数微调，更细腻
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            bloomPass.threshold = CONFIG.bloomThreshold;
-            bloomPass.strength = CONFIG.bloomStrength;
+            bloomPass.threshold = 0.2;
+            bloomPass.strength = 1.2; // 降低强度，避免太糊
             bloomPass.radius = 0.5;
+
+            // 关键：避免照片被 Bloom 影响过度
+            // 标准的 unreal bloom 会让所有亮的东西发光。我们稍后用 layer 区分，或者简单点：控制照片材质亮度。
+
+            const outputPass = new OutputPass();
 
             composer = new EffectComposer(renderer);
             composer.addPass(renderScene);
             composer.addPass(bloomPass);
+            composer.addPass(outputPass);
 
-            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                composer.setSize(window.innerWidth, window.innerHeight);
+            });
         }
 
-        // --- 4. 照片逻辑 ---
-        const imageInput = document.getElementById('imageUpload');
-        imageInput.addEventListener('change', (e) => {
-            const files = e.target.files;
-            if (!files.length) return;
-            Array.from(files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    const img = new Image();
-                    img.src = evt.target.result;
-                    img.onload = () => {
-                        createPhoto(img);
-                    };
-                };
-                reader.readAsDataURL(file);
-            });
+        // --- 4. 照片管理 ---
+        document.getElementById('fileIn').addEventListener('change', function(e) {
+            if(this.files.length) {
+                Array.from(this.files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        const img = new Image();
+                        img.onload = () => addPhoto(img);
+                        img.src = evt.target.result;
+                    }
+                    reader.readAsDataURL(file);
+                });
+            }
         });
 
-        function createPhoto(img) {
+        function addPhoto(img) {
             const aspect = img.width / img.height;
             const tex = new THREE.Texture(img);
+            tex.colorSpace = THREE.SRGBColorSpace;
             tex.needsUpdate = true;
-            tex.colorSpace = THREE.SRGBColorSpace; // 修复颜色
 
-            // 使用 BasicMaterial 避免受光照影响变黑，也不要太亮导致过曝
+            // 使用 BasicMaterial 保证照片清晰，不受光照影响
             const mat = new THREE.MeshBasicMaterial({ 
                 map: tex, 
-                side: THREE.DoubleSide, 
-                transparent: true,
-                opacity: 0.9
+                side: THREE.DoubleSide
             });
-            const geo = new THREE.PlaneGeometry(1.5 * aspect, 1.5);
+            const geo = new THREE.PlaneGeometry(2 * aspect, 2);
             const mesh = new THREE.Mesh(geo, mat);
 
-            // 初始随机位置
+            // 随机分布在马周围
             mesh.position.set(
-                (Math.random() - 0.5) * 20,
-                (Math.random() - 0.5) * 10,
-                (Math.random() - 0.5) * 10
+                (Math.random()-0.5)*10,
+                (Math.random()-0.5)*6,
+                (Math.random()-0.5)*5
             );
+            mesh.rotation.y = (Math.random()-0.5);
             
-            // 存一个目标位置用于动画
-            mesh.userData = {
-                originPos: mesh.position.clone(),
-                velocity: new THREE.Vector3((Math.random()-0.5)*0.01, (Math.random()-0.5)*0.01, 0)
+            // 存储原始位置用于恢复
+            mesh.userData = { 
+                homePos: mesh.position.clone(),
+                velocity: new THREE.Vector3((Math.random()-0.5)*0.02, (Math.random()-0.5)*0.02, 0)
             };
-
+            
             photoGroup.add(mesh);
         }
 
-        // --- 5. 动画循环 ---
+        // --- 5. 动画核心 ---
         function animate() {
             requestAnimationFrame(animate);
             
             const time = clock.getElapsedTime();
-            const positions = particleGeo.attributes.position.array;
-            
-            // 旋转整个粒子群 (根据手势旋转目标)
-            if (appState === STATE.STARDUST || appState === STATE.PHOTO) {
-                particlesSystem.rotation.y += (targetRotationY - particlesSystem.rotation.y) * 0.05;
-            } else {
-                // 马形态自动慢旋
-                particlesSystem.rotation.y += 0.002;
-            }
+            const positions = particles.geometry.attributes.position.array;
+            const targets = particles.geometry.attributes.targetPos.array;
+            const starts = startPositions;
 
-            // 更新所有粒子位置
+            // 缓动系数
+            const lerpSpeed = 0.06;
+
             for(let i=0; i<CONFIG.particleCount; i++) {
-                const px = currentPositions[i].x;
-                const py = currentPositions[i].y;
-                const pz = currentPositions[i].z;
+                const ix = i*3, iy = i*3+1, iz = i*3+2;
                 
                 let tx, ty, tz;
 
-                if (appState === STATE.FORM) {
+                // 状态逻辑
+                if(currentState === STATE.ASSEMBLED) {
                     // 目标：马的形状
-                    tx = targetPositions[i*3];
-                    ty = targetPositions[i*3+1];
-                    tz = targetPositions[i*3+2];
-                    
-                    // 加上一点微弱的呼吸浮动
-                    tx += Math.sin(time * 2 + py) * 0.02;
-                } else {
-                    // 目标：原始散开位置
-                    tx = originalPositions[i].x;
-                    ty = originalPositions[i].y;
-                    tz = originalPositions[i].z;
+                    tx = targets[ix];
+                    ty = targets[iy];
+                    tz = targets[iz];
 
-                    // 增加 "Curl Noise" 感觉的漂浮流动
-                    tx += Math.sin(time * 0.5 + i) * 0.5;
-                    ty += Math.cos(time * 0.3 + i) * 0.5;
+                    // 增加微弱的 "噪声流动"，让马看起来有生命力，而不是石雕
+                    // 简单的正弦波叠加模拟 curl noise 效果
+                    tx += Math.sin(time + iy) * 0.05;
+                    ty += Math.cos(time + ix) * 0.05;
+
+                } else {
+                    // 目标：散开
+                    tx = starts[ix];
+                    ty = starts[iy];
+                    tz = starts[iz];
+                    
+                    // 散开时飘动幅度大一点
+                    tx += Math.sin(time * 0.5 + iy) * 0.5;
+                    ty += Math.cos(time * 0.3 + ix) * 0.5;
                 }
 
-                // 插值移动 (Lerp) - 0.08 的系数控制汇聚速度
-                currentPositions[i].x += (tx - px) * 0.08;
-                currentPositions[i].y += (ty - py) * 0.08;
-                currentPositions[i].z += (tz - pz) * 0.08;
+                if (currentState === STATE.PHOTO_FOCUS) {
+                    // 照片模式下，粒子稍微退后变暗（通过推远Z轴模拟）
+                    tz -= 5;
+                    tx *= 1.5; // 扩散开让出视野
+                    ty *= 1.5;
+                }
 
-                // 更新 Buffer
-                positions[i*3] = currentPositions[i].x;
-                positions[i*3+1] = currentPositions[i].y;
-                positions[i*3+2] = currentPositions[i].z;
+                // 计算当前位置
+                positions[ix] += (tx - positions[ix]) * lerpSpeed;
+                positions[iy] += (ty - positions[iy]) * lerpSpeed;
+                positions[iz] += (tz - positions[iz]) * lerpSpeed;
+            }
+            
+            particles.geometry.attributes.position.needsUpdate = true;
+
+            // 场景旋转交互
+            if (currentState === STATE.SCATTERED) {
+                particles.rotation.y += (sceneRotationTarget.x - particles.rotation.y) * 0.05;
+                particles.rotation.x += (sceneRotationTarget.y - particles.rotation.x) * 0.05;
+            } else if (currentState === STATE.ASSEMBLED) {
+                // 马自转展示
+                particles.rotation.y += 0.003;
+                particles.rotation.x *= 0.95; // 回正
             }
 
-            particleGeo.attributes.position.needsUpdate = true;
-
-            // 更新照片逻辑
-            photoGroup.children.forEach(photo => {
-                if (appState === STATE.PHOTO && photo === activePhoto) {
-                    // 选中的照片：飞到相机面前
-                    // 计算相机前方的位置
-                    const target = new THREE.Vector3(0, 0, 8).applyMatrix4(camera.matrixWorld);
-                    photo.position.lerp(target, 0.1);
-                    photo.lookAt(camera.position);
-                    photo.scale.setScalar(2.0); // 放大
-                } else if (appState === STATE.FORM) {
-                    // 马形态：照片融入马身体里 (随机选几个马的点作为目标)
-                    // 这里为了简单，让照片围绕在马周围旋转
-                    photo.position.lerp(photo.userData.originPos.clone().multiplyScalar(0.3), 0.05);
-                    photo.lookAt(camera.position);
-                    photo.scale.setScalar(0.5); // 变小
-                } else {
-                    // 散开态：漂浮
-                    photo.position.x += photo.userData.velocity.x;
-                    photo.position.y += photo.userData.velocity.y;
-                    photo.lookAt(camera.position);
-                    photo.scale.setScalar(1.0);
-                }
-            });
+            // 照片动画逻辑
+            updatePhotos();
 
             composer.render();
         }
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            composer.setSize(window.innerWidth, window.innerHeight);
+        function updatePhotos() {
+            if (photoGroup.children.length === 0) return;
+
+            photoGroup.children.forEach(mesh => {
+                if (currentState === STATE.PHOTO_FOCUS && mesh === activePhoto) {
+                    // 激活的照片：飞到镜头前
+                    const targetPos = new THREE.Vector3(0, 0, 10).applyMatrix4(camera.matrixWorld);
+                    // 稍微偏移一点以免直接撞上 near plane
+                    targetPos.z -= 4; 
+                    
+                    mesh.position.lerp(targetPos, 0.1);
+                    mesh.lookAt(camera.position);
+                    mesh.scale.setScalar(1.5); // 放大
+                } else if (currentState === STATE.ASSEMBLED) {
+                    // 马形态：照片缩小混在粒子中
+                    mesh.position.lerp(mesh.userData.homePos, 0.05);
+                    mesh.lookAt(camera.position);
+                    mesh.scale.setScalar(0.4);
+                    // 围绕中心慢慢转
+                    mesh.position.applyAxisAngle(new THREE.Vector3(0,1,0), 0.005);
+                } else {
+                    // 散开形态：漂浮
+                    mesh.position.x += mesh.userData.velocity.x;
+                    mesh.position.y += mesh.userData.velocity.y;
+                    mesh.scale.setScalar(0.8);
+                    mesh.lookAt(camera.position);
+                }
+            });
         }
 
-        // --- 6. 手势识别逻辑 (优化版) ---
-        const statusText = document.getElementById('status-text');
+        // --- 6. 手势识别 ---
+        const statusDiv = document.getElementById('status');
         
         function onResults(results) {
             document.getElementById('loader').style.display = 'none';
+            
             if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
-
+            
             const lm = results.multiHandLandmarks[0];
             
-            // 简单的手势判断
+            // 简单的手势判定算法
+            // 1. 握拳 (Fist): 指尖距离手掌根部很近
             const wrist = lm[0];
-            const fingerTips = [lm[8], lm[12], lm[16], lm[20]];
-            const fingerMids = [lm[6], lm[10], lm[14], lm[18]]; // 关节
-            
-            // 判断手指是否弯曲 (指尖y > 关节y, 屏幕坐标系向下为正)
-            let foldedFingers = 0;
-            // 注意：MediaPipe坐标系，y向下增大。如果指尖y > 关节y，说明手指指向下或弯曲。
-            // 更稳健的方法是计算 指尖到手腕距离 vs 关节到手腕距离
-            const dist = (p1, p2) => Math.sqrt((p1.x-p2.x)**2 + (p1.y-p2.y)**2);
-            
-            for(let i=0; i<4; i++) {
-                if (dist(fingerTips[i], wrist) < dist(fingerMids[i], wrist)) {
-                    foldedFingers++;
-                }
-            }
+            const tips = [lm[8], lm[12], lm[16], lm[20]];
+            let closeCount = 0;
+            tips.forEach(p => {
+                const d = Math.sqrt((p.x-wrist.x)**2 + (p.y-wrist.y)**2);
+                if(d < 0.25) closeCount++; // 阈值，根据经验设定
+            });
+            const isFist = closeCount >= 3;
 
-            const isFist = foldedFingers >= 3;
-            const isPinch = dist(lm[4], lm[8]) < 0.05; // 拇指食指距离
+            // 2. 捏合 (Pinch): 拇指食指接近
+            const dPinch = Math.sqrt((lm[4].x-lm[8].x)**2 + (lm[4].y-lm[8].y)**2);
+            const isPinch = dPinch < 0.05;
 
-            // 状态机切换
+            // 3. 状态转换
             if (isPinch) {
-                // 抓取模式
-                if (appState !== STATE.PHOTO) {
-                    appState = STATE.PHOTO;
-                    statusText.innerText = "MODE: MEMORY RECALL (PINCH)";
-                    // 随机激活一张照片，或者找离中心最近的
-                    if (photoGroup.children.length > 0) {
-                        activePhoto = photoGroup.children[Math.floor(Math.random() * photoGroup.children.length)];
+                if (currentState !== STATE.PHOTO_FOCUS) {
+                    currentState = STATE.PHOTO_FOCUS;
+                    statusDiv.innerText = "状态: 照片回忆 (PINCH)";
+                    statusDiv.style.color = "#fff";
+                    
+                    // 自动选择一张照片
+                    const photos = photoGroup.children;
+                    if(photos.length > 0) {
+                        // 简单的轮询或者随机
+                        activePhoto = photos[Math.floor(Math.random() * photos.length)];
                     }
                 }
             } else if (isFist) {
-                // 聚合模式
-                appState = STATE.FORM;
-                statusText.innerText = "MODE: GOLDEN HORSE (FIST)";
+                currentState = STATE.ASSEMBLED;
+                statusDiv.innerText = "状态: 荣耀金马 (FIST)";
+                statusDiv.style.color = "#FFD700";
                 activePhoto = null;
             } else {
-                // 散开模式
-                appState = STATE.STARDUST;
-                statusText.innerText = "MODE: NEBULA (OPEN HAND)";
+                currentState = STATE.SCATTERED;
+                statusDiv.innerText = "状态: 星云散开 (OPEN)";
+                statusDiv.style.color = "#aaa";
                 activePhoto = null;
-                
-                // 根据手掌位置旋转视角
-                const handX = lm[9].x; // 中指根部x
-                targetRotationY = (handX - 0.5) * 5; // -2.5 to 2.5 rad
+
+                // 手势控制旋转 (映射手掌中心位置)
+                // x: 0~1 -> -2~2
+                sceneRotationTarget.x = (lm[9].x - 0.5) * 4; 
+                sceneRotationTarget.y = (lm[9].y - 0.5) * 2;
             }
         }
 
@@ -505,8 +514,9 @@
         });
         hands.onResults(onResults);
 
-        const cameraMedia = new Camera(document.querySelector('.input_video'), {
-            onFrame: async () => { await hands.send({image: document.querySelector('.input_video')}); },
+        const video = document.querySelector('.input_video');
+        const cameraMedia = new Camera(video, {
+            onFrame: async () => { await hands.send({image: video}); },
             width: 640, height: 480
         });
 
