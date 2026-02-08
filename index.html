@@ -3,487 +3,534 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPIC 工业视界 (V19 Stable Core)</title>
+    <title>Golden Horse - Gesture Controlled</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #020202; font-family: "Microsoft YaHei", sans-serif; }
+        body { margin: 0; overflow: hidden; background-color: #1a0000; font-family: 'Helvetica Neue', sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
+        /* UI 层 */
         #ui-layer {
-            position: absolute; top: 20px; left: 20px; z-index: 10;
-            color: #ffffff; pointer-events: none; user-select: none;
-            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
         }
-        h1 { margin: 0; font-weight: 300; letter-spacing: 4px; font-size: 24px; color: #d4af37; text-shadow: 0 0 15px rgba(212, 175, 55, 0.8); }
-        
-        .status-tag { font-size: 14px; color: #00ffea; margin-top: 10px; border: 1px solid #00ffea; display: inline-block; padding: 4px 10px; background: rgba(0,0,0,0.6); border-radius: 20px;}
-        
-        #controls-hint { margin-top: 10px; font-size: 12px; color: #aaa; line-height: 1.6; }
-        
-        #upload-btn {
-            pointer-events: auto; background: linear-gradient(90deg, #b30000, #d4af37);
-            border: none; color: #ffffff; padding: 10px 20px;
-            cursor: pointer; margin-top: 20px; display: inline-block;
-            font-size: 12px; border-radius: 30px; text-transform: uppercase;
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); transition: 0.3s;
+
+        .header {
+            color: #FFD700;
+            text-shadow: 0 0 10px #ff0000, 0 0 20px #FFD700;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            font-weight: bold;
         }
-        #upload-btn:hover { transform: scale(1.05); box-shadow: 0 0 25px rgba(212, 175, 55, 0.6); }
-        input[type="file"] { display: none; }
-        
+
+        .controls {
+            pointer-events: auto;
+            background: rgba(50, 0, 0, 0.6);
+            border: 1px solid #FFD700;
+            padding: 15px;
+            border-radius: 8px;
+            color: #fff;
+            backdrop-filter: blur(5px);
+            max-width: 300px;
+        }
+
+        .upload-btn {
+            background: #FFD700;
+            color: #330000;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: 0.3s;
+        }
+        .upload-btn:hover { background: #fff; box-shadow: 0 0 15px #FFD700; }
+
+        /* 加载动画 */
+        #loader {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #FFD700; font-size: 24px; z-index: 10;
+        }
+
+        /* 隐藏视频元素用于 MediaPipe */
         .input_video { display: none; }
-        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 999; display: flex; justify-content: center; align-items: center; color: #00ffff; font-size: 18px; transition: opacity 0.5s; }
+        
+        /* 状态指示器 */
+        #status-indicator {
+            position: absolute; bottom: 20px; right: 20px;
+            color: #FFD700; font-size: 14px;
+            background: rgba(0,0,0,0.5); padding: 10px;
+            border: 1px solid #FFD700;
+        }
     </style>
-</head>
-<body>
-
-    <div id="loader">系统启动中...</div>
-
-    <div id="ui-layer">
-        <h1 id="scene-title">🐎 战马形态</h1>
-        <div class="status-tag" id="gesture-status">等待摄像头/鼠标...</div>
-        <div id="controls-hint">
-            ✊握拳: 切换场景 (马/塔/风光/字)<br>
-            🖐张开: 散开 (照片画廊)<br>
-            👌捏合: 抓取照片 (或点击鼠标)
-        </div>
-        <label id="upload-btn">
-            + 注入照片 (Gallery)
-            <input type="file" id="file-input" multiple accept="image/*">
-        </label>
-    </div>
-
-    <video class="input_video" playsinline></video>
-    <div id="canvas-container"></div>
-    <canvas id="genCanvas" width="1024" height="512" style="display:none;"></canvas>
-
-    <script src="https://cdn.staticfile.org/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/postprocessing/ShaderPass.js"></script>
-    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/shaders/CopyShader.js"></script>
-    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/shaders/LuminosityHighPassShader.js"></script>
-    <script src="https://cdn.staticfile.org/three.js/r128/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
 
-    <script>
-        // --- 战马骨骼关键点 (硬编码，确保无需下载模型) ---
-        const HORSE_PTS = [
-            0,20,10, 5,20,8, 10,22,5, 15,25,0, 20,28,-2, 25,20,-2, 28,15,-3, 20,5,0, 15,0,2, 
-            -5,18,12, -15,18,10, -25,10,5, -5,5,10, -15,5,8, -20,8,5, 
-            5,-10,5, 5,-30,5, -20,-10,5, -25,-30,8, -35,10,5,
-            // 补充点，让马更丰满
-            0,15,8, -10,12,8, -20,0,5, 5,-5,5
-        ];
+    <div id="loader">系统初始化中... 请允许摄像头权限</div>
 
-        // --- 配置 ---
-        const CONFIG = { 
-            particleCount: 18000, 
-            cameraZ: 100, 
-            colors: { 
-                horse: [0xD4AF37, 0xC41E3A, 0xFF4500], 
-                tower: [0x00BFFF, 0xFFFFFF, 0x228B22],
-                wind: [0x00FF7F, 0xF0FFFF],
-                text: [0x88CCFF]
-            } 
-        };
+    <video class="input_video"></video>
 
-        const STATE = { 
-            mode: 'SHAPE', // SHAPE, SCATTER, ZOOM
-            shapeIdx: 0,   // 0:马, 1:塔, 2:风光, 3:文字
-            handVisible: false, 
-            handX: 0.5, handY: 0.5,
-            autoRotate: 0
-        };
+    <div id="canvas-container"></div>
 
-        // 全局变量
-        let scene, camera, renderer, composer;
-        let particlesMesh, photoGroup, dummy = new THREE.Object3D();
-        let raycaster = new THREE.Raycaster();
-        let particlesData = [], photosData = [];
+    <div id="ui-layer">
+        <div class="header">
+            <h2>Golden Nebulae Horse</h2>
+        </div>
         
-        // 你的防晕相机变量
-        let lookAtTarget = new THREE.Vector3(0, 0, 0);
-        let currentLookAt = new THREE.Vector3(0, 0, 0);
+        <div class="controls">
+            <p><strong>手势控制说明:</strong></p>
+            <ul>
+                <li>✊ <strong>握拳:</strong> 聚合 (马形态)</li>
+                <li>🖐 <strong>张开五指:</strong> 散开 (星云态)</li>
+                <li>👌 <strong>捏合 (抓取):</strong> 抓取照片放大</li>
+                <li>👋 <strong>移动/旋转手掌:</strong> 在散开态下旋转视角</li>
+            </ul>
+            <hr style="border-color: #550000;">
+            <p>上传照片混入粒子中:</p>
+            <input type="file" id="imageUpload" multiple accept="image/*" style="display: none;">
+            <button class="upload-btn" onclick="document.getElementById('imageUpload').click()">上传照片</button>
+        </div>
 
-        // 形态数据缓存
-        const SHAPES = { HORSE:[], TOWER:[], SCENE:[], TEXT:[], SCATTER:[] };
+        <div id="status-indicator">当前状态: 等待手势...</div>
+    </div>
 
-        // 启动
-        window.onload = () => {
-            initThree();
-            generateAllData(); // 生成数据
-            createParticles(); // 创建粒子
-            startCamera();     // 启动AI
-            document.getElementById('loader').style.display = 'none';
+    <script type="module">
+        import * as THREE from 'three';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+        // --- 全局配置 ---
+        const CONFIG = {
+            particleCount: 2500,
+            goldColor: 0xFFD700,
+            redColor: 0x880000,
+            bgColor: 0x220000,
+            bloomStrength: 1.5,
+            bloomRadius: 0.8,
+            horseScale: 3,
         };
 
+        let scene, camera, renderer, composer;
+        let particles = []; 
+        let uploadedTextures = [];
+        let time = 0;
+        
+        // 状态管理
+        const STATE = {
+            ASSEMBLED: 'assembled', // 马
+            DISPERSED: 'dispersed', // 散开
+            ZOOM: 'zoom'            // 照片放大
+        };
+        let currentState = STATE.ASSEMBLED;
+        let targetRotation = { x: 0, y: 0 };
+        let activePhotoIndex = -1; // 当前放大的照片索引
+
+        // DOM 元素
+        const statusDiv = document.getElementById('status-indicator');
+        const loaderDiv = document.getElementById('loader');
+
+        // --- 1. Three.js 初始化 ---
         function initThree() {
             const container = document.getElementById('canvas-container');
+
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x020202, 0.0015);
+            scene.background = new THREE.Color(CONFIG.bgColor);
+            scene.fog = new THREE.FogExp2(CONFIG.bgColor, 0.02);
 
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
-            camera.position.set(0, 0, CONFIG.cameraZ);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 15);
+            camera.lookAt(0, 0, 0);
 
-            renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false }); // 性能优化
+            renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.2;
+            renderer.setPixelRatio(window.devicePixelRatio);
             container.appendChild(renderer.domElement);
 
             // 灯光
-            scene.add(new THREE.AmbientLight(0xffffff, 0.2));
-            const l1 = new THREE.PointLight(0xffd700, 1.5, 200); l1.position.set(50,50,50); scene.add(l1);
-            const l2 = new THREE.PointLight(0x00ffff, 1.5, 200); l2.position.set(-50,0,50); scene.add(l2);
+            const ambientLight = new THREE.AmbientLight(CONFIG.redColor, 1.0);
+            scene.add(ambientLight);
 
-            // 后处理
-            try {
-                const renderScene = new THREE.RenderPass(scene, camera);
-                const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-                bloomPass.threshold = 0.2; bloomPass.strength = 1.2; bloomPass.radius = 0.5;
-                composer = new THREE.EffectComposer(renderer);
-                composer.addPass(renderScene);
-                composer.addPass(bloomPass);
-            } catch(e) { console.log("Bloom disabled"); }
+            const pointLight = new THREE.PointLight(CONFIG.goldColor, 2, 50);
+            pointLight.position.set(5, 5, 5);
+            scene.add(pointLight);
 
-            photoGroup = new THREE.Group();
-            scene.add(photoGroup);
+            // 后期处理 (Bloom)
+            const renderScene = new RenderPass(scene, camera);
+            const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+            bloomPass.threshold = 0;
+            bloomPass.strength = CONFIG.bloomStrength;
+            bloomPass.radius = CONFIG.bloomRadius;
 
-            // 事件
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                if(composer) composer.setSize(window.innerWidth, window.innerHeight);
-            });
+            composer = new EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+
+            // 监听窗口大小
+            window.addEventListener('resize', onWindowResize);
             
-            // 鼠标作为备用交互
-            document.addEventListener('mousemove', e => {
-                if(!STATE.handVisible) {
-                    STATE.handX = e.clientX/window.innerWidth;
-                    STATE.handY = e.clientY/window.innerHeight;
-                }
-            });
-            document.addEventListener('click', (e) => {
-                if(e.target.id === 'upload-btn') return;
-                if(STATE.mode === 'ZOOM') {
-                    STATE.mode = 'SCATTER'; resetPhoto(); updateUI("🖐 释放照片");
-                } else if(STATE.mode === 'SCATTER') {
-                    // 尝试抓取
-                    raycastGrab();
-                } else {
-                    // 切换场景
-                    STATE.shapeIdx = (STATE.shapeIdx+1)%4;
-                    updateSceneInfo();
-                }
-            });
-            document.getElementById('file-input').addEventListener('change', handleImageUpload);
-
-            animate();
+            // 初始化粒子
+            initParticles();
         }
 
-        // --- 核心：程序化生成数据 (无模型下载) ---
-        function generateAllData() {
-            // 1. 战马 (骨骼插值)
-            const horse = [];
-            for(let i=0; i<CONFIG.particleCount; i++) {
-                const idx1 = Math.floor(Math.random()*(HORSE_PTS.length/3))*3;
-                const idx2 = Math.floor(Math.random()*(HORSE_PTS.length/3))*3;
-                const t = Math.random();
-                let x = HORSE_PTS[idx1] + (HORSE_PTS[idx2]-HORSE_PTS[idx1])*t;
-                let y = HORSE_PTS[idx1+1] + (HORSE_PTS[idx2+1]-HORSE_PTS[idx1+1])*t;
-                let z = HORSE_PTS[idx1+2] + (HORSE_PTS[idx2+2]-HORSE_PTS[idx1+2])*t;
-                // 扩充体积
-                x += (Math.random()-0.5)*10; y += (Math.random()-0.5)*10; z += (Math.random()-0.5)*6;
-                horse.push(new THREE.Vector3(x*1.5, y*1.5, z*1.5));
-            }
-            SHAPES.HORSE = horse;
+        // --- 2. 粒子系统核心 (马的形状模拟) ---
+        
+        // 辅助函数：在一个范围内随机点
+        function randomPointInBox(center, size) {
+            return {
+                x: center.x + (Math.random() - 0.5) * size.x,
+                y: center.y + (Math.random() - 0.5) * size.y,
+                z: center.z + (Math.random() - 0.5) * size.z
+            };
+        }
 
-            // 2. 凉水塔 (双曲线)
-            const tower = [];
-            const H = 80;
-            for(let i=0; i<CONFIG.particleCount; i++) {
-                const r = i/CONFIG.particleCount;
-                const y = (r-0.5)*H;
-                const v = (y+H/2)/H; 
-                let rad = 20 * Math.sqrt(1 + Math.pow(v*2.2-1.3, 2)*0.6);
-                if(r>0.95) rad = Math.random()*30; // 蒸汽
-                const ang = r*Math.PI*120;
-                tower.push(new THREE.Vector3(Math.cos(ang)*rad, y, Math.sin(ang)*rad));
-            }
-            SHAPES.TOWER = tower;
+        // 生成“马”的目标位置点
+        // 由于没有模型文件，我们用几个几何体拼凑出马的大致轮廓
+        function getHorsePosition(index) {
+            const s = CONFIG.horseScale;
+            const r = Math.random();
+            
+            let pos = {x:0, y:0, z:0};
 
-            // 3. 风光互补
-            const scene = [];
-            const addFan = (ox, oz, s) => {
-                const h = 60*s;
-                for(let k=0; k<1500; k++) { // 柱
-                    scene.push(new THREE.Vector3(ox+(Math.random()-0.5)*3, (Math.random()-0.5)*h, oz+(Math.random()-0.5)*3));
+            if (r < 0.4) { 
+                // 躯干 (Main Body) - 稍微拉长的球体/盒子
+                pos = randomPointInBox({x: 0, y: 0, z: 0}, {x: 4*s, y: 1.5*s, z: 1.5*s});
+            } else if (r < 0.55) {
+                // 脖子 (Neck) - 向上向左
+                pos = randomPointInBox({x: -1.8*s, y: 1.2*s, z: 0}, {x: 1*s, y: 2*s, z: 0.8*s});
+                // 稍微倾斜脖子
+                pos.x -= (pos.y * 0.3); 
+            } else if (r < 0.65) {
+                // 头 (Head)
+                pos = randomPointInBox({x: -2.8*s, y: 2.2*s, z: 0}, {x: 1*s, y: 0.8*s, z: 0.8*s});
+            } else {
+                // 腿 (Legs) - 4个区域
+                const legX = (Math.random() > 0.5) ? -1.5*s : 1.5*s; // 前后
+                const legZ = (Math.random() > 0.5) ? -0.5*s : 0.5*s; // 左右
+                pos = randomPointInBox({x: legX, y: -1.5*s, z: legZ}, {x: 0.5*s, y: 2.5*s, z: 0.5*s});
+            }
+            return new THREE.Vector3(pos.x, pos.y, pos.z);
+        }
+
+        function initParticles() {
+            // 基本几何体
+            const geometryCube = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+            const geometrySphere = new THREE.SphereGeometry(0.06, 8, 8);
+            
+            // 材质
+            const matGold = new THREE.MeshStandardMaterial({ 
+                color: CONFIG.goldColor, 
+                emissive: 0xaa5500, 
+                roughness: 0.2, 
+                metalness: 1.0 
+            });
+            
+            const matRed = new THREE.MeshStandardMaterial({ 
+                color: 0xff0000, 
+                emissive: 0x550000,
+                roughness: 0.5,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            // 创建粒子对象
+            for (let i = 0; i < CONFIG.particleCount; i++) {
+                let mesh;
+                let type = 'particle';
+
+                // 10% 是正方体，10% 是红球，80% 是金点(简化为小球)
+                if (Math.random() < 0.1) {
+                    mesh = new THREE.Mesh(geometryCube, matGold);
+                } else if (Math.random() < 0.2) {
+                    mesh = new THREE.Mesh(geometrySphere, matRed);
+                } else {
+                    // 使用非常小的平面或球体代表“金沙”
+                    mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 0.08), matGold);
+                    mesh.lookAt(camera.position); // Billboard effect
                 }
-                for(let b=0; b<3; b++) { // 叶片
-                    const ang = b/3*6.28;
-                    for(let k=0; k<500; k++) {
-                        const l = Math.random()*35*s;
-                        scene.push(new THREE.Vector3(ox+Math.cos(ang)*l, h/2+Math.sin(ang)*l, oz));
+                
+                // 初始位置：完全随机散开
+                mesh.position.set(
+                    (Math.random() - 0.5) * 30,
+                    (Math.random() - 0.5) * 30,
+                    (Math.random() - 0.5) * 30
+                );
+
+                // 计算该粒子在“马”形态下的目标位置
+                const targetPos = getHorsePosition(i);
+                
+                // 存储数据
+                const pData = {
+                    mesh: mesh,
+                    targetHorse: targetPos,
+                    targetDispersed: mesh.position.clone(), // 散开就是当前随机位置
+                    velocity: new THREE.Vector3(0,0,0),
+                    isPhoto: false
+                };
+
+                scene.add(mesh);
+                particles.push(pData);
+            }
+        }
+
+        // --- 3. 照片上传处理 ---
+        const imageInput = document.getElementById('imageUpload');
+        imageInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (!files.length) return;
+
+            let fileIndex = 0;
+            const reader = new FileReader();
+
+            function loadNext() {
+                if (fileIndex >= files.length) return;
+                
+                reader.readAsDataURL(files[fileIndex]);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const tex = new THREE.Texture(img);
+                        tex.needsUpdate = true;
+                        createPhotoParticle(tex);
+                        fileIndex++;
+                        loadNext();
+                    };
+                };
+            }
+            loadNext();
+        });
+
+        function createPhotoParticle(texture) {
+            // 随机替换一个现有的普通粒子为照片粒子
+            // 优先替换非照片粒子
+            const availableIndices = particles.map((p, i) => (!p.isPhoto ? i : -1)).filter(i => i !== -1);
+            if (availableIndices.length === 0) return;
+
+            const idx = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+            const p = particles[idx];
+
+            // 移除旧 Mesh
+            scene.remove(p.mesh);
+
+            // 创建照片 Mesh
+            const geometry = new THREE.PlaneGeometry(0.8, 0.8);
+            const material = new THREE.MeshBasicMaterial({ 
+                map: texture, 
+                side: THREE.DoubleSide,
+                transparent: true 
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(p.mesh.position);
+            
+            scene.add(mesh);
+
+            // 更新粒子数据
+            p.mesh = mesh;
+            p.isPhoto = true;
+            // 照片在马身上也可以稍微大一点
+            p.targetHorse = getHorsePosition(idx); 
+        }
+
+        // --- 4. 动画循环与逻辑 ---
+        
+        function updateParticles() {
+            const dt = 0.02;
+            const timeNow = Date.now() * 0.001;
+
+            particles.forEach((p, i) => {
+                let target;
+
+                if (currentState === STATE.ASSEMBLED) {
+                    target = p.targetHorse;
+                    // 加一点呼吸效果
+                    target = target.clone().add(new THREE.Vector3(
+                        Math.sin(timeNow + i) * 0.05,
+                        Math.cos(timeNow + i) * 0.05,
+                        0
+                    ));
+                    // 确保照片总是面向相机（如果在马的身体里）
+                    if(p.isPhoto) p.mesh.lookAt(camera.position);
+
+                } else if (currentState === STATE.DISPERSED) {
+                    target = p.targetDispersed;
+                    // 漂浮效果
+                    target = target.clone().add(new THREE.Vector3(
+                        Math.sin(timeNow + i * 0.1) * 0.5,
+                        Math.cos(timeNow * 0.8 + i) * 0.5,
+                        Math.sin(timeNow * 0.5 + i) * 0.5
+                    ));
+                    p.mesh.lookAt(camera.position);
+
+                } else if (currentState === STATE.ZOOM) {
+                    if (p.isPhoto && i === activePhotoIndex) {
+                        // 选中的照片飞到相机前面
+                        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                        target = camera.position.clone().add(forward.multiplyScalar(4)); 
+                        p.mesh.scale.set(4, 4, 4); // 放大
+                        p.mesh.lookAt(camera.position);
+                    } else {
+                        // 其他粒子推远或散开
+                        target = p.targetDispersed.clone().multiplyScalar(1.5);
+                        p.mesh.scale.set(1, 1, 1);
                     }
                 }
-            };
-            addFan(-30, -15, 1.2); addFan(30, 15, 0.8);
-            const remain = CONFIG.particleCount - scene.length;
-            for(let i=0; i<remain; i++) { // 光伏
-                const c = Math.floor(Math.random()*10); const r = Math.floor(Math.random()*5);
-                scene.push(new THREE.Vector3((c-5)*12, -40, (r-2)*10+30));
-            }
-            SHAPES.SCENE = scene;
 
-            // 4. 文字
-            SHAPES.TEXT = createTextPoints("风光无限  国家电投");
-
-            // 5. 散开
-            for(let i=0; i<CONFIG.particleCount; i++) {
-                SHAPES.SCATTER.push(new THREE.Vector3((Math.random()-0.5)*250, (Math.random()-0.5)*200, (Math.random()-0.5)*250));
-            }
-        }
-
-        function createTextPoints(txt) {
-            const c=document.getElementById('genCanvas').getContext('2d');
-            c.clearRect(0,0,1024,512); c.font="bold 120px 'Microsoft YaHei'"; 
-            c.fillStyle="#fff"; c.textAlign="center"; c.textBaseline="middle"; 
-            c.fillText(txt,512,256);
-            const d=c.getImageData(0,0,1024,512).data; const v=[]; const pts=[];
-            for(let y=0;y<512;y+=4)for(let x=0;x<1024;x+=4)if(d[(y*1024+x)*4+3]>100)v.push({x,y});
-            for(let i=0;i<CONFIG.particleCount;i++){const p=v[i%v.length]; pts.push(new THREE.Vector3((p.x-512)*0.15, -(p.y-256)*0.15, 0));}
-            return pts;
-        }
-
-        function createParticles() {
-            const geo = new THREE.IcosahedronGeometry(0.2, 0); // 低模粒子
-            const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.8 });
-            particlesMesh = new THREE.InstancedMesh(geo, mat, CONFIG.particleCount);
-            
-            const col = new THREE.Color();
-            for(let i=0; i<CONFIG.particleCount; i++) {
-                dummy.position.copy(SHAPES.SCATTER[i]);
-                dummy.updateMatrix();
-                particlesMesh.setMatrixAt(i, dummy.matrix);
-                
-                // 初始数据
-                particlesData.push({ 
-                    cur: SHAPES.SCATTER[i].clone(), 
-                    target: SHAPES.HORSE[i], // 默认目标
-                    speed: 0.02 + Math.random()*0.04 
-                });
-            }
-            scene.add(particlesMesh);
-            updateSceneInfo(); // 初始化颜色
-        }
-
-        // --- 逻辑 ---
-        function updateSceneInfo() {
-            const title = document.getElementById('scene-title');
-            const status = document.getElementById('gesture-status');
-            let colors;
-            
-            if(STATE.shapeIdx===0) { title.innerText="🐎 战马形态 (红金)"; colors=CONFIG.colors.horse; }
-            else if(STATE.shapeIdx===1) { title.innerText="🏭 凉水塔 (彩绘)"; colors=CONFIG.colors.tower; }
-            else if(STATE.shapeIdx===2) { title.innerText="⚡ 风光互补"; colors=CONFIG.colors.wind; }
-            else { title.innerText="💎 品牌愿景"; colors=CONFIG.colors.text; }
-
-            // 更新粒子目标和颜色
-            const targetShape = [SHAPES.HORSE, SHAPES.TOWER, SHAPES.SCENE, SHAPES.TEXT][STATE.shapeIdx];
-            
-            for(let i=0; i<CONFIG.particleCount; i++) {
-                particlesData[i].target = targetShape[i];
-                
-                // 简单的颜色分配
-                const cHex = colors[Math.floor(Math.random()*colors.length)];
-                const col = new THREE.Color(cHex);
-                particlesMesh.setColorAt(i, col);
-            }
-            particlesMesh.instanceColor.needsUpdate = true;
-            status.innerText = "场景已切换";
-        }
-
-        function handleImageUpload(e) {
-            const files = e.target.files; if(!files.length) return;
-            photosData.forEach(p => photoGroup.remove(p.mesh)); photosData = [];
-            
-            Array.from(files).forEach(f => {
-                const r = new FileReader();
-                r.onload = ev => {
-                    const img = new Image(); img.src = ev.target.result;
-                    img.onload = () => createPhoto(img);
-                };
-                r.readAsDataURL(f);
+                if (target) {
+                    // 简单的 Lerp 动画
+                    p.mesh.position.lerp(target, 0.05);
+                }
             });
-            
-            // 自动切到散开模式
-            STATE.mode = 'SCATTER';
-            document.getElementById('gesture-status').innerText = `已加载 ${files.length} 张照片`;
+
+            // 旋转整个场景（基于手势或自动）
+            if (currentState === STATE.DISPERSED && !activePhotoIndex) {
+                scene.rotation.y += (targetRotation.x - scene.rotation.y) * 0.1;
+                scene.rotation.x += (targetRotation.y - scene.rotation.x) * 0.1;
+            } else if (currentState === STATE.ASSEMBLED) {
+                // 马形态自动缓慢旋转
+                scene.rotation.y += 0.005;
+                scene.rotation.x *= 0.95; // 回正
+            }
         }
 
-        function createPhoto(img) {
-            const tex = new THREE.Texture(img); tex.needsUpdate=true; 
-            const ar = img.width/img.height;
-            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(8*ar, 8), new THREE.MeshBasicMaterial({map:tex, side:THREE.DoubleSide}));
-            const frame = new THREE.Mesh(new THREE.BoxGeometry(8*ar+0.2, 8.2, 0.1), new THREE.MeshBasicMaterial({color:0xffffff}));
-            mesh.position.z = 0.06; frame.add(mesh);
-            
-            // 散开位置 (圆环)
-            const angle = Math.random() * Math.PI * 2;
-            const r = 60 + Math.random()*20;
-            const scat = new THREE.Vector3(Math.cos(angle)*r, (Math.random()-0.5)*40, Math.sin(angle)*r);
-            
-            frame.position.copy(scat);
-            frame.lookAt(0,0,0);
-            
-            photoGroup.add(frame);
-            photosData.push({ mesh:frame, cur:scat.clone(), scat:scat, focus:false, baseRot:frame.rotation.clone() });
-        }
-
-        // --- 核心动画 (Lerp + Anti-Dizzy) ---
         function animate() {
             requestAnimationFrame(animate);
-            const time = Date.now() * 0.001;
+            updateParticles();
+            composer.render();
+        }
 
-            // 1. 粒子运动
-            for(let i=0; i<CONFIG.particleCount; i++) {
-                const d = particlesData[i];
-                let tgt = (STATE.mode==='SHAPE') ? d.target : SHAPES.SCATTER[i];
-                
-                // 散开时加点漂浮
-                if(STATE.mode !== 'SHAPE') {
-                    tgt = SHAPES.SCATTER[i].clone();
-                    tgt.y += Math.sin(time + i*0.1) * 5;
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- 5. MediaPipe 手势逻辑 ---
+        
+        const videoElement = document.getElementsByClassName('input_video')[0];
+        
+        function onResults(results) {
+            loaderDiv.style.display = 'none';
+            
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+                detectGesture(landmarks);
+            }
+        }
+
+        function detectGesture(landmarks) {
+            // landmarks 0-20. 
+            // 0: Wrist, 4: ThumbTip, 8: IndexTip, 12: MiddleTip, 16: RingTip, 20: PinkyTip
+            
+            // 计算手指是否弯曲（指尖到掌心的距离 vs 指关节到掌心的距离）
+            // 简单算法：如果指尖(8,12,16,20) y坐标 > 指关节(5,9,13,17) y坐标 (注意：y在屏幕坐标系向下为正，但MediaPipe是归一化的)
+            // 这里我们用距离算法更准确。
+            
+            const wrist = landmarks[0];
+            const thumbTip = landmarks[4];
+            const indexTip = landmarks[8];
+            const middleTip = landmarks[12];
+            const ringTip = landmarks[16];
+            const pinkyTip = landmarks[20];
+
+            // 计算指尖到手腕的距离
+            const dist = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+            
+            const dIndex = dist(indexTip, wrist);
+            const dMiddle = dist(middleTip, wrist);
+            const dRing = dist(ringTip, wrist);
+            const dPinky = dist(pinkyTip, wrist);
+
+            // 阈值 (需要根据实际调试微调)
+            const isOpen = (dIndex > 0.3 && dMiddle > 0.3 && dRing > 0.3 && dPinky > 0.3);
+            const isFist = (dIndex < 0.25 && dMiddle < 0.25 && dRing < 0.25 && dPinky < 0.25);
+            
+            // 捏合检测 (食指尖和拇指尖距离)
+            const pinchDist = dist(thumbTip, indexTip);
+            const isPinch = pinchDist < 0.05;
+
+            // 状态机转换
+            if (isPinch && currentState === STATE.DISPERSED) {
+                // 触发抓取照片
+                if (currentState !== STATE.ZOOM) {
+                    statusDiv.innerText = "状态: 抓取照片 (Zoom)";
+                    currentState = STATE.ZOOM;
+                    // 随机找一张照片
+                    const photoParticles = particles.map((p, i) => p.isPhoto ? i : -1).filter(i => i !== -1);
+                    if (photoParticles.length > 0) {
+                        activePhotoIndex = photoParticles[Math.floor(Math.random() * photoParticles.length)];
+                    }
                 }
-
-                d.cur.lerp(tgt, d.speed);
-                dummy.position.copy(d.cur);
-                // 粒子本身不旋转，保持高性能
-                dummy.updateMatrix();
-                particlesMesh.setMatrixAt(i, dummy.matrix);
-            }
-            particlesMesh.instanceMatrix.needsUpdate = true;
-
-            // 2. 照片运动
-            if(STATE.mode === 'SCATTER' || STATE.mode === 'ZOOM') {
-                // 自动旋转画廊
-                if(STATE.mode === 'SCATTER' && !STATE.handVisible) STATE.autoRotate += 0.002;
-                if(STATE.handVisible) STATE.autoRotate += (STATE.handX - 0.5) * 0.05;
-
-                photosData.forEach((p, i) => {
-                    let tgt;
-                    let scale = 1;
+            } else if (isFist) {
+                statusDiv.innerText = "状态: 聚合 (马)";
+                currentState = STATE.ASSEMBLED;
+                activePhotoIndex = -1;
+                // 重置旋转
+                targetRotation = {x: 0, y: 0}; 
+            } else if (isOpen) {
+                if (currentState === STATE.ZOOM && isPinch) {
+                    // 如果还在捏着，保持zoom
+                } else {
+                    statusDiv.innerText = "状态: 散开 (星云)";
+                    currentState = STATE.DISPERSED;
+                    activePhotoIndex = -1;
                     
-                    if(p.focus) {
-                        // 抓取：飞到眼前
-                        const v = new THREE.Vector3(0,0,-15).applyQuaternion(camera.quaternion);
-                        tgt = camera.position.clone().add(v);
-                        p.mesh.lookAt(camera.position);
-                        scale = 2.5;
-                    } else {
-                        // 散开：圆环布局 + 旋转
-                        const total = photosData.length;
-                        const angle = (i/total)*Math.PI*2 + STATE.autoRotate;
-                        const r = 70;
-                        tgt = new THREE.Vector3(Math.cos(angle)*r, p.scat.y, Math.sin(angle)*r);
-                        p.mesh.lookAt(0,0,0); // 面向中心
-                    }
-                    
-                    p.cur.lerp(tgt, 0.05);
-                    p.mesh.position.copy(p.cur);
-                    p.mesh.scale.lerp(new THREE.Vector3(scale,scale,scale), 0.1);
-                });
-            } else {
-                // 隐藏照片
-                photosData.forEach(p => p.mesh.position.set(0,-1000,0));
-            }
-
-            // 3. 相机 (Anti-Dizzy)
-            if(STATE.mode === 'SCATTER' || STATE.mode === 'SHAPE') {
-                const tx = (STATE.handX - 0.5) * 30; // 左右微动
-                const ty = (STATE.handY - 0.5) * 20;
-                
-                // 目标是看向中心，但带一点偏移
-                lookAtTarget.set(tx, ty, 0);
-                currentLookAt.lerp(lookAtTarget, 0.05);
-                camera.lookAt(currentLookAt);
-                
-                // 相机位置轻微浮动
-                camera.position.lerp(new THREE.Vector3(tx*0.5, ty*0.5, CONFIG.cameraZ), 0.05);
-            }
-
-            if(composer) composer.render(); else renderer.render(scene, camera);
-        }
-
-        // --- 交互 ---
-        function raycastGrab() {
-            if(STATE.mode === 'ZOOM' || photosData.length === 0) return;
-            
-            // 你的 V3.4 逻辑：优先吸附中心
-            let closest = null; let minAngle = Infinity;
-            const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
-            
-            photosData.forEach(p => {
-                const toPhoto = p.mesh.position.clone().sub(camera.position).normalize();
-                const angle = camDir.angleTo(toPhoto);
-                // 只要在视野中心 20度 以内
-                if(angle < 0.4 && angle < minAngle) { minAngle = angle; closest = p; }
-            });
-            
-            if(closest) {
-                resetPhoto();
-                STATE.mode = 'ZOOM';
-                closest.focus = true;
-                document.getElementById('gesture-status').innerText = "已抓取 (张手释放)";
+                    // 手势旋转逻辑: 映射手掌中心位置到旋转角度
+                    // 手在屏幕中心(0.5, 0.5) = 0旋转
+                    // x: 0 -> -PI, 1 -> PI
+                    targetRotation.x = (landmarks[9].x - 0.5) * 4; // 9是中指根部，作为手掌中心近似
+                    targetRotation.y = (landmarks[9].y - 0.5) * 4;
+                }
             }
         }
 
-        function resetPhoto() { photosData.forEach(p => p.focus = false); }
-        function updateUI(msg) { document.getElementById('gesture-status').innerText = msg; }
+        const hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
 
-        // --- AI ---
-        async function startCamera() {
-            try {
-                const video = document.getElementsByClassName('input_video')[0];
-                const hands = new Hands({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-                hands.setOptions({maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6});
-                hands.onResults(res => {
-                    if(res.multiHandLandmarks.length) {
-                        STATE.handVisible = true;
-                        const lm = res.multiHandLandmarks[0];
-                        STATE.handX = STATE.handX*0.8 + (1-lm[9].x)*0.2;
-                        STATE.handY = STATE.handY*0.8 + lm[9].y*0.2;
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
 
-                        const pinch = Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05;
-                        let open=0; [8,12,16,20].forEach(t=>{if(lm[t].y<lm[t-2].y)open++});
+        hands.onResults(onResults);
 
-                        if(pinch) {
-                            if(STATE.mode==='SCATTER') raycastGrab();
-                        } else if(open>=4) {
-                            if(STATE.mode==='ZOOM') { STATE.mode='SCATTER'; resetPhoto(); updateUI("🖐 照片画廊"); }
-                            else if(STATE.mode==='SHAPE') { STATE.mode='SCATTER'; updateUI("🖐 照片画廊"); }
-                        } else if(open<=1) {
-                            if(STATE.mode==='SCATTER') {
-                                STATE.mode='SHAPE';
-                                STATE.shapeIdx = (STATE.shapeIdx+1)%4;
-                                updateSceneInfo();
-                            }
-                        }
-                    } else {
-                        STATE.handVisible = false;
-                    }
-                });
-                const cam = new Camera(video, {onFrame: async()=>{await hands.send({image:video})}, width:480, height:360});
-                await cam.start();
-                updateUI("摄像头已激活");
-            } catch(e) {
-                console.log("Camera failed", e);
-                updateUI("摄像头不可用，请使用鼠标");
-            }
-        }
+        const cameraMedia = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+
+        // 启动
+        initThree();
+        cameraMedia.start();
+        animate();
+
     </script>
 </body>
 </html>
